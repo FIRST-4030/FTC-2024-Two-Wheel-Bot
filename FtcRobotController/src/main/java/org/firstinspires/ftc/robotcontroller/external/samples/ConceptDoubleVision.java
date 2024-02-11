@@ -36,15 +36,12 @@ import org.firstinspires.ftc.robotcore.external.hardware.camera.BuiltinCameraDir
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 import org.firstinspires.ftc.vision.VisionPortal;
-import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
-import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import org.firstinspires.ftc.vision.tfod.TfodProcessor;
 
 import java.util.List;
 
 /*
- * This OpMode illustrates the basics of using both AprilTag recognition and TensorFlow
- * Object Detection.
+ * This OpMode illustrates the basics of using TensorFlow Object Detection.
  *
  * Use Android Studio to Copy this Class, and Paste it into your team's code folder with a new name.
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list.
@@ -53,11 +50,6 @@ import java.util.List;
 @Disabled
 public class ConceptDoubleVision extends LinearOpMode {
     private static final boolean USE_WEBCAM = true;  // true for webcam, false for phone camera
-
-    /**
-     * The variable to store our instance of the AprilTag processor.
-     */
-    private AprilTagProcessor aprilTag;
 
     /**
      * The variable to store our instance of the TensorFlow Object Detection processor.
@@ -73,8 +65,6 @@ public class ConceptDoubleVision extends LinearOpMode {
     public void runOpMode() {
         initDoubleVision();
 
-        // This OpMode loops continuously, allowing the user to switch between
-        // AprilTag and TensorFlow Object Detection (TFOD) image processors.
         while (!isStopRequested())  {
 
             if (opModeInInit()) {
@@ -83,14 +73,6 @@ public class ConceptDoubleVision extends LinearOpMode {
                 telemetry.addLine("----------------------------------------");
             }
 
-            if (myVisionPortal.getProcessorEnabled(aprilTag)) {
-                // User instructions: Dpad left or Dpad right.
-                telemetry.addLine("Dpad Left to disable AprilTag");
-                telemetry.addLine();
-                telemetryAprilTag();
-            } else {
-                telemetry.addLine("Dpad Right to enable AprilTag");
-            }
             telemetry.addLine();
             telemetry.addLine("----------------------------------------");
             if (myVisionPortal.getProcessorEnabled(tfod)) {
@@ -104,11 +86,6 @@ public class ConceptDoubleVision extends LinearOpMode {
             // Push telemetry to the Driver Station.
             telemetry.update();
 
-            if (gamepad1.dpad_left) {
-                myVisionPortal.setProcessorEnabled(aprilTag, false);
-            } else if (gamepad1.dpad_right) {
-                myVisionPortal.setProcessorEnabled(aprilTag, true);
-            }
             if (gamepad1.dpad_down) {
                 myVisionPortal.setProcessorEnabled(tfod, false);
             } else if (gamepad1.dpad_up) {
@@ -123,15 +100,9 @@ public class ConceptDoubleVision extends LinearOpMode {
 
 
     /**
-     * Initialize AprilTag and TFOD.
+     * Initialize TFOD.
      */
     private void initDoubleVision() {
-        // -----------------------------------------------------------------------------------------
-        // AprilTag Configuration
-        // -----------------------------------------------------------------------------------------
-
-        aprilTag = new AprilTagProcessor.Builder()
-            .build();
 
         // -----------------------------------------------------------------------------------------
         // TFOD Configuration
@@ -147,37 +118,13 @@ public class ConceptDoubleVision extends LinearOpMode {
         if (USE_WEBCAM) {
             myVisionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .addProcessors(tfod, aprilTag)
                 .build();
         } else {
             myVisionPortal = new VisionPortal.Builder()
                 .setCamera(BuiltinCameraDirection.BACK)
-                .addProcessors(tfod, aprilTag)
                 .build();
         }
     }   // end initDoubleVision()
-
-    /**
-     * Add telemetry about AprilTag detections.
-     */
-    private void telemetryAprilTag() {
-        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
-        telemetry.addData("# AprilTags Detected", currentDetections.size());
-
-        // Step through the list of detections and display info for each one.
-        for (AprilTagDetection detection : currentDetections) {
-            if (detection.metadata != null) {
-                telemetry.addLine(String.format("\n==== (ID %d) %s", detection.id, detection.metadata.name));
-                telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
-                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
-                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
-            } else {
-                telemetry.addLine(String.format("\n==== (ID %d) Unknown", detection.id));
-                telemetry.addLine(String.format("Center %6.0f %6.0f   (pixels)", detection.center.x, detection.center.y));
-            }
-        }   // end for() loop
-
-    }   // end method telemetryAprilTag()
 
     /**
      * Add telemetry about TensorFlow Object Detection (TFOD) recognitions.
