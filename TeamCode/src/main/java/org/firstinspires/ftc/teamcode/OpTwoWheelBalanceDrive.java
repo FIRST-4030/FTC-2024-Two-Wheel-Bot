@@ -12,6 +12,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -44,20 +45,21 @@ public class OpTwoWheelBalanceDrive extends OpMode
     // YAW PID (presently same for both robots)
     PIDController yawPID = new PIDController(0.4,0.1,0.05); // kp, ki, kd
     
-    double pitch = 0;
-    double pitchRATE = 0; 
-    double motorPowerVolts = 0; 
-    
-    double yaw = 0;
-    double priorYaw = 0;
-    double rawYaw, rawPriorYaw = 0;
-    double yawRATE, yawPower;
+    public double pitch = 0;
+    public double pitchRATE = 0;
+    public double motorPowerVolts = 0;
+
+    public double yaw = 0;
+    public double priorYaw = 0;
+    public double rawYaw, rawPriorYaw = 0;
+    public double yawRATE, yawPower;
     
     private IMU imu;
     private YawPitchRollAngles orientation;   // part of FIRST navigation classes
     private AngularVelocity angularVelocity;  // part of FIRST navigation classes
     
     private VoltageSensor battery;
+    private ServoHoldPosition stabilizedArm;
     double currentVoltage = 0.0;
     
     public DcMotor  leftDrive   = null;
@@ -102,6 +104,15 @@ public class OpTwoWheelBalanceDrive extends OpMode
     double distance = 1.0; // mm
     double runTime = 1.0; // seconds
 
+    private double servoTarget = 0.5;
+    enum ArmPositions {
+        UP,
+        FORWARD,
+        BACKWARD
+    }
+    ArmPositions armPositions;
+
+
     @Override
     public void init() {
 
@@ -125,7 +136,10 @@ public class OpTwoWheelBalanceDrive extends OpMode
         
         imu = hardwareMap.get(IMU.class, "imu");
         imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP, 
-    RevHubOrientationOnRobot.UsbFacingDirection.FORWARD)));
+    RevHubOrientationOnRobot.UsbFacingDirection.RIGHT)));
+
+        armPositions = ArmPositions.UP;
+        stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo", imu);
 
         // Initialize the PIDs
         yawPID.setSetpoint(0.0);    // initial yaw (turn) is zero.
@@ -215,7 +229,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
     // MAIN LOOP
     @Override
     public void loop() {
-        
+
         double stickVeloTarget = 0;
         
         double leftTicks = leftDrive.getCurrentPosition();
@@ -337,7 +351,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         } else if (gamepad1.right_bumper && turnTimer.seconds() > 0.6) {
             turn -= Math.PI/2.0;
             turnTimer.reset();
-        } else if (gamepad1.b){
+        } else if (gamepad1.a){
             if (CAMERA) {
                 // Look for April Tag
                 numTags = myAprilTag.getDetections();
@@ -364,8 +378,27 @@ public class OpTwoWheelBalanceDrive extends OpMode
         
         // Set the motor power.  
         currentVoltage = battery.getVoltage();
-        leftDrive.setPower(motorPowerVolts/currentVoltage-yawPower); 
-        rightDrive.setPower(motorPowerVolts/currentVoltage+yawPower); 
+        leftDrive.setPower(motorPowerVolts/currentVoltage-yawPower);
+        rightDrive.setPower(motorPowerVolts/currentVoltage+yawPower);
+
+        if(gamepad1.y) {
+            armPositions = ArmPositions.UP;
+        }
+        if(gamepad1.x) {
+            armPositions = ArmPositions.BACKWARD;
+        }
+        if(gamepad1.b) {
+            armPositions = ArmPositions.FORWARD;
+        }
+        if(armPositions.equals(ArmPositions.UP)){
+            servoTarget = 0.48;
+        } else if(armPositions.equals(ArmPositions.FORWARD)){
+            servoTarget = 0.60;
+        } else if(armPositions.equals(ArmPositions.BACKWARD)){
+            servoTarget = 0.36;
+        }
+
+        stabilizedArm.update(servoTarget);
 
         if (LOG) {
             // Data log 
