@@ -33,10 +33,15 @@ public class OpTwoWheelBalanceDrive extends OpMode
     boolean LOG=true;  // should the log be recorded?
     
     Datalog datalog; // create the data logger
-
+    //Use Velocity
     static double Ks = 0.2979; //0.6574; // Feedforward Static constant, volts
     static double Kv = 0.0074; //0.0063; // Feedforward Velo constant, volts/mm/sec
     static double Kp = 0.015; // Velo error proportional constant
+    //Use Pitch
+    double Kvelo = -0.013;  // volts/mm/sec
+    double Kpitch = -0.165; // volts/degree
+    double KpitchRate = -0.02; // volts/degrees/sec
+    double Kpos = -0.020;  // volts/mm
     static double maxLinVelo = 600.0; // maximum linear velocity
     double maxDeltaVelo = 7.0; // max delta linear velocity
     double veloTarget = 0;
@@ -71,7 +76,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
     static final double WHEELDIA = 200.0; //152.4; // blue wheel diameter
     //static final double WHEELDIA = 120.0; // BLACK wheel diameter
     
-    private Odometry odometry;
+    private OdometryRA odometry;
     
     // Timers
     private ElapsedTime runtime= new ElapsedTime();
@@ -96,7 +101,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
     double deltaBalAng=0.0; // Used with some math to control robot pitch
     double turn=0.0;
     double linearVelocity=0.0;  // robots linear velocity, used in PID
-    double x, y, theta;  // used with odometry
+    double x, y, s, theta;  // used with odometry
     
     // PieceWise members, for velocity ramping, for runToPos
     private PiecewiseFunction veloCurve = new PiecewiseFunction();
@@ -111,6 +116,18 @@ public class OpTwoWheelBalanceDrive extends OpMode
         BACKWARD
     }
     ArmPositions armPositions;
+    boolean hold = true;
+    double posTarget = 0;
+    double pitchTarget = 0;
+    private TWBMoves myTWBmoves = new TWBMoves(this);
+    double posError = 0;
+    double positionVolts = 0;
+    double pitchError = 0;
+    double pitchVolts = 0;
+    double totalPowerVolts = 0;
+    ElapsedTime clawTimer;
+    Servo clawServo;
+    boolean isClawOpen = false;
 
 
     @Override
@@ -140,6 +157,8 @@ public class OpTwoWheelBalanceDrive extends OpMode
 
         armPositions = ArmPositions.UP;
         stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo", imu);
+        clawServo = hardwareMap.get(Servo.class, "clawServo");
+        clawTimer = new ElapsedTime();
 
         // Initialize the PIDs
         yawPID.setSetpoint(0.0);    // initial yaw (turn) is zero.
@@ -166,9 +185,9 @@ public class OpTwoWheelBalanceDrive extends OpMode
             // contain the last value.
             datalog.opModeStatus.set("INIT");
             // Write PID constants to the log file. Not using intended fields, because this is done once at start
-            datalog.pitch.set(Kp);       
-            datalog.SetPoint.set(Ks);     
-            datalog.pitchRATE.set(Kv*100); 
+            datalog.pitch.set(Kp);
+            datalog.SetPoint.set(Ks);
+            datalog.pitchRATE.set(Kv*100);
             datalog.battery.set(battery.getVoltage());
             datalog.yaw.set(yawPID.getKp());
             datalog.yawOdo.set(yawPID.getKi()); 
@@ -215,7 +234,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         pitch = orientation.getPitch(AngleUnit.DEGREES);
         imu.resetYaw(); // set the yaw value to zero
 
-        odometry = new Odometry(WHEELBASE,WHEELDIA,pitch); // start the odometry
+        odometry = new OdometryRA(WHEELBASE,WHEELDIA,pitch); // start the odometry
         
         // reset the timers for the datalog timestamp, turns, runToPos
         runtime.reset();
@@ -261,6 +280,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         linearVelocity = odometry.getAvgLinearVelocity();
         x = odometry.getX();
         y = odometry.getY();
+        s = odometry.getS();
         theta = odometry.getTheta(); 
 
         /*
@@ -285,7 +305,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         */
 
         // Right joystick moves robot fwd and back, by changing velocity target
-        stickVeloTarget = -gamepad1.right_stick_y * maxLinVelo; // mm/sec
+        //stickVeloTarget = -gamepad1.right_stick_y * maxLinVelo; // mm/sec
         
         //if (stickVeloTarget > 0 && frontBrake) stickVeloTarget = 0;
         //if (stickVeloTarget < 0 && backBrake) stickVeloTarget = 0;
@@ -345,27 +365,38 @@ public class OpTwoWheelBalanceDrive extends OpMode
         // Robot turns by adjusting the yaw PID setpoint
         // bumpers provide 90 degree instant turns
         // joystick provides smooth turns
-        if (gamepad1.left_bumper && turnTimer.seconds() > 0.6) {
+
+        // Right joystick moves robot fwd and back, by changing position target
+        posTarget -= gamepad1.right_stick_y*15; // add mm to position target
+
+        myTWBmoves.handleMoveButtons(s); // s
+
+        //myTWBmoves.handleScaleButtons(); // updates distance(mm),time(sec)
+
+        posTarget = myTWBmoves.getPosTarget(posTarget);
+        pitchTarget = myTWBmoves.getPitchTarget();
+
+        tuneButtons(); // used to tune the K terms
+
+        // MAIN CONTROL CODE:
+        posError = s-posTarget;
+        positionVolts = Kvelo*linearVelocity - Ks*Math.signum(posError) + Kpos*posError;
+        pitchError = pitch -pitchTarget;
+        pitchVolts = Kpitch*pitchError + KpitchRate*pitchRATE;
+
+        totalPowerVolts = pitchVolts +  positionVolts;
+
+        /*if (gamepad1.left_bumper && turnTimer.seconds() > 0.6) {
             turn += Math.PI/2.0;
             turnTimer.reset();
         } else if (gamepad1.right_bumper && turnTimer.seconds() > 0.6) {
             turn -= Math.PI/2.0;
             turnTimer.reset();
-        } else if (gamepad1.a){
-            if (CAMERA) {
-                // Look for April Tag
-                numTags = myAprilTag.getDetections();
-                telemetry.addData("April Tags = ",numTags);
-                if(numTags>0 && turnTimer.seconds() > 0.05) {
-                    turn += myAprilTag.getBearing()/2.0;
-                    turnTimer.reset();
-                }
-            }
-        } else {
+        } else {*/
             // The xxx joystick turns the robot by adjusting the yaw PID setpoint
             turn  -=  gamepad1.left_stick_x*0.05;  // get turn from gamepad (radian delta)
             telemetry.addData("Robot Yaw (RADIANS)",turn);
-        }
+        //}
         yawPID.setSetpoint(turn); 
         yawPower = yawPID.compute(yaw);
 
@@ -378,27 +409,46 @@ public class OpTwoWheelBalanceDrive extends OpMode
         
         // Set the motor power.  
         currentVoltage = battery.getVoltage();
-        leftDrive.setPower(motorPowerVolts/currentVoltage-yawPower);
-        rightDrive.setPower(motorPowerVolts/currentVoltage+yawPower);
+        leftDrive.setPower(totalPowerVolts/currentVoltage-yawPower);
+        rightDrive.setPower(totalPowerVolts/currentVoltage+yawPower);
 
         if(gamepad1.y) {
             armPositions = ArmPositions.UP;
+            hold = true;
         }
         if(gamepad1.x) {
             armPositions = ArmPositions.BACKWARD;
+            hold = true;
         }
         if(gamepad1.b) {
             armPositions = ArmPositions.FORWARD;
+            hold = true;
         }
-        if(armPositions.equals(ArmPositions.UP)){
+        if(gamepad1.a && clawTimer.milliseconds() > 333) {
+            clawTimer.reset();
+            isClawOpen = !isClawOpen;
+        }
+        if(isClawOpen){
+            clawServo.setPosition(0.8);
+        } else {
+            clawServo.setPosition(0.25);
+        }
+
+        if(armPositions.equals(ArmPositions.UP)){ //+-0.12
             servoTarget = 0.48;
+            hold = true;
         } else if(armPositions.equals(ArmPositions.FORWARD)){
             servoTarget = 0.60;
         } else if(armPositions.equals(ArmPositions.BACKWARD)){
-            servoTarget = 0.36;
+            servoTarget = 0.465;
         }
 
-        stabilizedArm.update(servoTarget);
+        if(hold) {
+            stabilizedArm.update(servoTarget);
+            if(!(armPositions.equals(ArmPositions.UP))){
+                hold = false;
+            }
+        }
 
         if (LOG) {
             // Data log 
@@ -538,7 +588,42 @@ public class OpTwoWheelBalanceDrive extends OpMode
             datalogger.writeLine();
         }
     }
-    
+    public void tuneButtons() {
+        // buttons for tunning feedback constants
+        // CAUTION, USING DISTTIMER
+        double rT = 0.2; // run time in seconds
+
+        if (gamepad1.dpad_up && distTimer.seconds()>rT) {
+            Kpitch += 0.01;
+            distTimer.reset();
+        } else if (gamepad1.dpad_down && distTimer.seconds()>rT) {
+            Kpitch -= 0.01;
+            distTimer.reset();
+        } else if (gamepad1.dpad_left && distTimer.seconds()>rT) {
+            Kvelo += 0.0001;
+            distTimer.reset();
+        } else if (gamepad1.dpad_right && distTimer.seconds()>rT) {
+            Kvelo -= 0.0001;
+            distTimer.reset();
+        } else if (gamepad1.y && distTimer.seconds()>rT) {
+            KpitchRate += 0.0001;
+            distTimer.reset();
+        } else if (gamepad1.a && distTimer.seconds()>rT) {
+            KpitchRate -= 0.0001;
+            distTimer.reset();
+        } else if (gamepad1.x && distTimer.seconds()>rT) {
+            Kpos += 0.0001;
+            distTimer.reset();
+        } if (gamepad1.b && distTimer.seconds()>rT) {
+            Kpos -= 0.0001;
+            distTimer.reset();
+        }
+
+        telemetry.addData("K velo  +LEFT -RIGHT", Kvelo);
+        telemetry.addData("K pitch +UP -DOWN", Kpitch);
+        telemetry.addData("K pitch rate +Y -A", KpitchRate);
+        telemetry.addData("K pos   +X - B", Kpos);
+    }
     public double constrain(double v, double high, double low) {
         if (v > high)
             return high;

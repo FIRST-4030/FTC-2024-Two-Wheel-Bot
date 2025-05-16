@@ -124,8 +124,8 @@ public class TwoWheelBotBlue extends OpMode
         battery = hardwareMap.voltageSensor.get("Control Hub"); // BLACK
         
         imu = hardwareMap.get(IMU.class, "imu"); // Control Hub IMU
-        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP, 
-    RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD)));
+        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP,
+    RevHubOrientationOnRobot.UsbFacingDirection.RIGHT)));
     
         // Initialize the PIDs
         yawPID.setSetpoint(0.0);    // initial yaw (turn) is zero.
@@ -231,7 +231,7 @@ public class TwoWheelBotBlue extends OpMode
         theta = odometry.getTheta(); 
 
         // Right joystick moves robot fwd and back, by changing position target
-        posTarget -= gamepad1.right_stick_y*5; // add mm to position target
+        posTarget -= gamepad1.right_stick_y*7; // add mm to position target
         
         myTWBmoves.handleMoveButtons(s); // s
         
