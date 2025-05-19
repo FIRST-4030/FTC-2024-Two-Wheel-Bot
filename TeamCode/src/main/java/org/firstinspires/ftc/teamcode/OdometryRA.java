@@ -80,8 +80,8 @@ public class OdometryRA {
         newRightDistance = rightDistAvg.getAverage();
         
         // take the diference and add the pitch adjustment
-        deltaLeft  = newLeftDistance -lastLeftDistance;// - pitchEqDist;
-        deltaRight = newRightDistance-lastRightDistance;// - pitchEqDist;
+        deltaLeft  = newLeftDistance -lastLeftDistance - pitchEqDist;
+        deltaRight = newRightDistance-lastRightDistance - pitchEqDist;
 
         // Update the last distances
         //lastLeftDistance = leftDistance;

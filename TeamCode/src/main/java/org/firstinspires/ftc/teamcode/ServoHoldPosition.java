@@ -11,6 +11,8 @@ public class ServoHoldPosition {
     public Servo armServo;
     private final IMU imu;
     private double pitchError;
+    //Conversion from degrees provided by the IMU to modification of 0.00-1.00 Servo, accounting for gearing and limits
+    private final double DEGREES_TO_TRGT_POS = (double)1/900;
 
     public ServoHoldPosition(HardwareMap hardwareMap, String servoName, IMU imu){
         armServo = hardwareMap.get(Servo.class, servoName);
@@ -18,11 +20,14 @@ public class ServoHoldPosition {
         update(0.48);
     }
 
+    //Checks the IMU's provided pitch and changes the servo target position to account for the pitch.
     public void update(double servoTarget){
         pitchError = imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES);
-        servoTarget -= pitchError * 1/900;
-        if(servoTarget < 0.36) servoTarget = 0.36;
-        if(servoTarget > 0.60) servoTarget = 0.60;
+        if(pitchError < 15) {
+            servoTarget -= pitchError * DEGREES_TO_TRGT_POS;
+        }
+        if(servoTarget < 0.27) servoTarget = 0.27;
+        if(servoTarget > 0.70) servoTarget = 0.70;
         armServo.setPosition(servoTarget);
     }
 }

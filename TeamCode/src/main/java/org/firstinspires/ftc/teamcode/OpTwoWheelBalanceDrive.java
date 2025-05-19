@@ -45,7 +45,6 @@ public class OpTwoWheelBalanceDrive extends OpMode
     static double maxLinVelo = 600.0; // maximum linear velocity
     double maxDeltaVelo = 7.0; // max delta linear velocity
     double veloTarget = 0;
-    int junk=1;
     
     // YAW PID (presently same for both robots)
     PIDController yawPID = new PIDController(0.4,0.1,0.05); // kp, ki, kd
@@ -64,6 +63,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
     private AngularVelocity angularVelocity;  // part of FIRST navigation classes
     
     private VoltageSensor battery;
+    //Handles the arm control, and adjusting the arm for the pitch of the robot
     private ServoHoldPosition stabilizedArm;
     double currentVoltage = 0.0;
     
@@ -108,15 +108,19 @@ public class OpTwoWheelBalanceDrive extends OpMode
     boolean runToRunning = false;
     double distance = 1.0; // mm
     double runTime = 1.0; // seconds
-
-    private double servoTarget = 0.5;
+    //Target position of the servo, starts at the vertical balance point
+    private double servoTarget = 0.48;
+    //enum handling the three arm position presets: Vertical, fully down, and partly down. Forward is partly down
     enum ArmPositions {
         UP,
         FORWARD,
         BACKWARD
     }
     ArmPositions armPositions;
+    //Boolean controlling whether the arm should adjust for the pitch of the robot
     boolean hold = true;
+
+    //Code to add pitch correction PID in addition to the encoder PID
     double posTarget = 0;
     double pitchTarget = 0;
     private TWBMoves myTWBmoves = new TWBMoves(this);
@@ -125,9 +129,19 @@ public class OpTwoWheelBalanceDrive extends OpMode
     double pitchError = 0;
     double pitchVolts = 0;
     double totalPowerVolts = 0;
+
+    //Timer to restrict how frequently the claw opens the closes
     ElapsedTime clawTimer;
     Servo clawServo;
+
+    //Claw boolean
     boolean isClawOpen = false;
+
+    //Boolean as to whether the arm should be controlled by presets or incremented via d-pad
+    boolean increment = false;
+    //controlled by the Right Trigger. If active, ensures that the servo arm will never auto-adjust
+    //and will be governed entirely by the D-pad
+    boolean superHold = false;
 
 
     @Override
@@ -154,8 +168,9 @@ public class OpTwoWheelBalanceDrive extends OpMode
         imu = hardwareMap.get(IMU.class, "imu");
         imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP, 
     RevHubOrientationOnRobot.UsbFacingDirection.RIGHT)));
-
+        //Initial arm position: UP
         armPositions = ArmPositions.UP;
+        //Initialize the stabilized arm class, handles arm adjustment
         stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo", imu);
         clawServo = hardwareMap.get(Servo.class, "clawServo");
         clawTimer = new ElapsedTime();
@@ -311,6 +326,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         //if (stickVeloTarget < 0 && backBrake) stickVeloTarget = 0;
         
         // buttons for running a set distance
+        /*
         if (gamepad1.dpad_up && !runToRunning) {
             runToRunning = true;
             distance = 638.0; // mm
@@ -334,7 +350,8 @@ public class OpTwoWheelBalanceDrive extends OpMode
             distTimer.reset();
             turn -= Math.PI/2.0;
         }
-        
+        */
+        //Stops user input if running the pre-set moves
         if (runToRunning) {
             // runTo code
             stickVeloTarget = distance*veloCurve.getY(distTimer.seconds()/runTime);
@@ -374,14 +391,20 @@ public class OpTwoWheelBalanceDrive extends OpMode
         //myTWBmoves.handleScaleButtons(); // updates distance(mm),time(sec)
 
         posTarget = myTWBmoves.getPosTarget(posTarget);
-        pitchTarget = myTWBmoves.getPitchTarget();
+        //pitchTarget = myTWBmoves.getPitchTarget();
+        if(gamepad1.dpad_up){
+            pitchTarget += 0.1;
+        }
+        if(gamepad1.dpad_down){
+            pitchTarget -= 0.1;
+        }
 
-        tuneButtons(); // used to tune the K terms
+        //tuneButtons(); // used to tune the K terms
 
         // MAIN CONTROL CODE:
         posError = s-posTarget;
         positionVolts = Kvelo*linearVelocity - Ks*Math.signum(posError) + Kpos*posError;
-        pitchError = pitch -pitchTarget;
+        pitchError = pitch - pitchTarget;
         pitchVolts = Kpitch*pitchError + KpitchRate*pitchRATE;
 
         totalPowerVolts = pitchVolts +  positionVolts;
@@ -394,9 +417,10 @@ public class OpTwoWheelBalanceDrive extends OpMode
             turnTimer.reset();
         } else {*/
             // The xxx joystick turns the robot by adjusting the yaw PID setpoint
-            turn  -=  gamepad1.left_stick_x*0.05;  // get turn from gamepad (radian delta)
+            turn  -=  gamepad1.left_stick_x*0.02;  // get turn from gamepad (radian delta)
             telemetry.addData("Robot Yaw (RADIANS)",turn);
         //}
+
         yawPID.setSetpoint(turn); 
         yawPower = yawPID.compute(yaw);
 
@@ -412,18 +436,28 @@ public class OpTwoWheelBalanceDrive extends OpMode
         leftDrive.setPower(totalPowerVolts/currentVoltage-yawPower);
         rightDrive.setPower(totalPowerVolts/currentVoltage+yawPower);
 
+        //Sets arm to vertical. Increment and hold are modified to preoperly represent the operative state
         if(gamepad1.y) {
             armPositions = ArmPositions.UP;
             hold = true;
+            increment = false;
         }
+
+        //Sets arm to be on the ground
         if(gamepad1.x) {
             armPositions = ArmPositions.BACKWARD;
             hold = true;
+            increment = false;
         }
+
+        //Sets are to be slightly forward for depositing, mostly deprecated
         if(gamepad1.b) {
             armPositions = ArmPositions.FORWARD;
             hold = true;
+            increment = false;
         }
+
+        //Controls the claw boolean
         if(gamepad1.a && clawTimer.milliseconds() > 333) {
             clawTimer.reset();
             isClawOpen = !isClawOpen;
@@ -434,20 +468,45 @@ public class OpTwoWheelBalanceDrive extends OpMode
             clawServo.setPosition(0.25);
         }
 
-        if(armPositions.equals(ArmPositions.UP)){ //+-0.12
-            servoTarget = 0.48;
-            hold = true;
-        } else if(armPositions.equals(ArmPositions.FORWARD)){
-            servoTarget = 0.60;
-        } else if(armPositions.equals(ArmPositions.BACKWARD)){
-            servoTarget = 0.465;
+        //If the arm is not being governed by the dpad, set Servo equal to the corresponding enum
+        if(!increment) {
+            if (armPositions.equals(ArmPositions.UP)) { //+-0.12
+                servoTarget = 0.48;
+            } else if (armPositions.equals(ArmPositions.FORWARD)) {
+                servoTarget = 0.60;
+            } else if (armPositions.equals(ArmPositions.BACKWARD)) {
+                servoTarget = 0.4725;
+            }
         }
 
-        if(hold) {
-            stabilizedArm.update(servoTarget);
-            if(!(armPositions.equals(ArmPositions.UP))){
-                hold = false;
+        //Checks to see if superHold is false, never correcting arm when it is true
+        if(!superHold) {
+            //Arm increment with D-pad
+        if (gamepad1.dpad_right) {
+            servoTarget += 0.001;
+            increment = true;
+        }
+        if (gamepad1.dpad_left) {
+            servoTarget -= 0.001;
+            increment = true;
+         }
+        }
+
+        //Check superhold again and checks if it should correct for the increment or correct for the enum
+        if(!superHold) {
+            if (increment) {
+                stabilizedArm.update(servoTarget);
+            } else if (hold) {
+                stabilizedArm.update(servoTarget);
+                if (!(armPositions.equals(ArmPositions.UP))) {
+                    hold = false;
+                }
             }
+        }
+
+        //Toggles superhold
+        if(gamepad1.right_trigger > 0.5){
+            superHold = !superHold;
         }
 
         if (LOG) {
@@ -488,8 +547,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         telemetry.addData("Distance Odometry Y",y);
         //telemetry.addData("OpMode Status", datalog.opModeStatus);
         //telemetry.addData("Loop Counter", datalog.loopCounter);
-*/        
-        telemetry.addData("Pitch", pitch);
+*/
         //telemetry.addData("deltaBalAng",deltaBalAng);
         //telemetry.addData("Pitch Set Point",pitchSetPoint);
         telemetry.addData("Distance Odometry X",x);
@@ -500,6 +558,9 @@ public class OpTwoWheelBalanceDrive extends OpMode
         telemetry.addData("Target Velocity (mm/sec)", veloTarget);
         telemetry.addData("Motor Power Volts", motorPowerVolts);
         telemetry.addData("Battery", currentVoltage);
+        telemetry.addData("Pitch Target", pitchTarget);
+        telemetry.addData("Pitch", pitch);
+        telemetry.addData("Arm Target: ", servoTarget*900-365.5);
         telemetry.update();
 
         /*
