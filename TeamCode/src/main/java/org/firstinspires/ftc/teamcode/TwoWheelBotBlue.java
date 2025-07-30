@@ -27,6 +27,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 
 //@Disabled
 @TeleOp(name = "2WheelRobot-BlueWheels")
+@Disabled
 public class TwoWheelBotBlue extends OpMode
 {
     boolean LOG=false;  // should the log be recorded?

@@ -384,7 +384,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
         // joystick provides smooth turns
 
         // Right joystick moves robot fwd and back, by changing position target
-        posTarget -= gamepad1.right_stick_y*15; // add mm to position target
+        posTarget -= gamepad1.left_stick_y*15; // add mm to position target
 
         myTWBmoves.handleMoveButtons(s); // s
 
@@ -417,7 +417,7 @@ public class OpTwoWheelBalanceDrive extends OpMode
             turnTimer.reset();
         } else {*/
             // The xxx joystick turns the robot by adjusting the yaw PID setpoint
-            turn  -=  gamepad1.left_stick_x*0.02;  // get turn from gamepad (radian delta)
+            turn  -=  gamepad1.right_stick_x*0.02;  // get turn from gamepad (radian delta)
             telemetry.addData("Robot Yaw (RADIANS)",turn);
         //}
 
@@ -538,26 +538,15 @@ public class OpTwoWheelBalanceDrive extends OpMode
             // The logged timestamp is taken when writeLine() is called.
             datalog.writeLine();
         }
-/*
-        telemetry.addData("Yaw IMU", datalog.yaw);
-        telemetry.addData("Yaw Odometry", theta);
-        //telemetry.addData("Pitch Motor Power",motorPowerVolts);
-        //telemetry.addData("Velo PID d Pitch",veloPIDdPitch);
-        //telemetry.addData("Turn Power",turn);
-        telemetry.addData("Distance Odometry Y",y);
-        //telemetry.addData("OpMode Status", datalog.opModeStatus);
-        //telemetry.addData("Loop Counter", datalog.loopCounter);
-*/
-        //telemetry.addData("deltaBalAng",deltaBalAng);
+       //telemetry.addData("deltaBalAng",deltaBalAng);
         //telemetry.addData("Pitch Set Point",pitchSetPoint);
-        telemetry.addData("Distance Odometry X",x);
+        telemetry.addData("Distance Odometry X","%.2f ", x);
         //telemetry.addData("Left Encoder",leftTicks);
         //telemetry.addData("Right Encoder",rightTicks);
-        telemetry.addData("Linear Velocity (mm/sec)", linearVelocity);
-        telemetry.addData("Stick Velocity (mm/sec)", stickVeloTarget);
-        telemetry.addData("Target Velocity (mm/sec)", veloTarget);
+        telemetry.addData("Linear Velocity (mm/sec)", "%.2f ",linearVelocity);
+        //telemetry.addData("Stick Velocity (mm/sec)", stickVeloTarget);
+        //telemetry.addData("Target Velocity (mm/sec)", veloTarget);
         telemetry.addData("Motor Power Volts", motorPowerVolts);
-        telemetry.addData("Battery", currentVoltage);
         telemetry.addData("Pitch Target", pitchTarget);
         telemetry.addData("Pitch", pitch);
         telemetry.addData("Arm Target: ", servoTarget*900-365.5);
