@@ -1,5 +1,6 @@
 /*
-This FTC OpMode is for a Two Wheel Balancing Robot
+This FTC OpMode is for a Two Wheel Balancing Robot (unstable)
+This is for the robot without an arm
 This OpMode is extends Iterative OpMode (not LinearOpMode)
 Drive Mode: the Right stick moves the robot fwd and back, the Left stick turns left and right.
 */

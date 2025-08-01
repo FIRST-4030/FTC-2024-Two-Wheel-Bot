@@ -22,12 +22,20 @@ public class ServoHoldPosition {
 
     //Checks the IMU's provided pitch and changes the servo target position to account for the pitch.
     public void update(double servoTarget){
+        /*
         pitchError = imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES);
+
         if(pitchError < 15) {
             servoTarget -= pitchError * DEGREES_TO_TRGT_POS;
         }
         if(servoTarget < 0.27) servoTarget = 0.27;
         if(servoTarget > 0.70) servoTarget = 0.70;
+        */
         armServo.setPosition(servoTarget);
+    }
+
+    // return the servo position
+    public double getPosition() {
+        return armServo.getPosition();
     }
 }
