@@ -24,24 +24,23 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 @TeleOp(name = "2WheelBot_HighCG")
 public class OpTwoWheelBotHigh extends OpMode
 {
-    boolean LOG=false;  // should the log be recorded?
+    boolean LOG=true;  // should the log be recorded?
 
-    boolean TUNE=false; // switch for buttons
+    boolean TUNE=true; // switch for buttons
 
     Datalog datalog; // create the data logger object
 
     // These are feedforward terms
     static double Ks = 0.2;  // Feedforward Static constant, volts
-    static double Kp = 0.01; // Velocity error proportional constant
 
     // These are the state terms for a two wheel balancing robot
-    double Kpitch = -0.245; // volts/degree
-    double KpitchRate = -0.0212; // volts/degrees/sec
+    double Kpitch = -0.40; // volts/degree
+    double KpitchRate = -0.025; // volts/degrees/sec
 
-    double Kpos = 0.0118;  // volts/mm For high balancing (unstable) this term is positive
-    double Kvelo = 0.0117;  // volts/mm/sec For high balancing (unstable) this term is positive
+    double Kpos = 0.016;  // volts/mm For high balancing (unstable) this term is positive
+    double Kvelo = 0.015;  // volts/mm/sec For high balancing (unstable) this term is positive
 
-    double maxDeltaVelo = 7.0; // max delta linear velocity
+    double maxSVelo = 300.0; // max linear velocity (s is any direction). Robot can probably do 1000
     double veloTarget = 0;
     
     // YAW PID
@@ -68,14 +67,13 @@ public class OpTwoWheelBotHigh extends OpMode
     public DcMotor  leftDrive   = null;
     public DcMotor  rightDrive  = null;
     static final double TICKSPERMM = 1.7545; // blue, REV SPUR 40:1, 8in wheels
-    static final double WHEELBASE = 350.0; // blue robot Wheel base (mm)
+    static final double WHEELBASE = 310.0; // blue robot Wheel base (mm)
     static final double WHEELDIA = 203.0; // blue 8 inch wheel diameter (mm)
 
     OdometryRA odometry; // two wheel odometry object with running average
     
     // Timers
     ElapsedTime runtime= new ElapsedTime();
-    ElapsedTime turnTimer = new ElapsedTime();
     ElapsedTime distTimer = new ElapsedTime();
     double currentTime;
     double lastTime = 0;  // Last timestamp
@@ -86,25 +84,16 @@ public class OpTwoWheelBotHigh extends OpMode
     double linearVelocity=0.0;  // robots linear velocity, used in PID
     double xOdom, yOdom, sOdom, theta;  // used with odometry
     
-    //Target position of the servo, starts at the vertical balance point
-    private double servoTarget = 0.209;
-    //enum handling the three arm position presets: Vertical, fully down, and partly down. Forward is partly down
-    enum ArmPositions {
-        UP,
-        FORWARD,
-        BACKWARD
-    }
-    ArmPositions armPositions;
+    //Target position of the arm, starts at the vertical balance point
+    private double armDesiredAng = 0.0;  // initialize (rig) with arm vertical!  to be changed later
 
     //Code to add pitch correction PID in addition to the encoder PID
     double posTarget = 0; // mm
     double pitchTarget = 0; // degrees
-    private TWBMoves myTWBmoves = new TWBMoves(this);
     double posError = 0;
-    double positionVolts = 0;
     double pitchError = 0;
-    double pitchVolts = 0;
-    double totalPowerVolts = 0;
+
+    private TWBMoves myTWBmoves = new TWBMoves(this);
 
     //Timer to restrict how frequently the claw opens the closes
     ElapsedTime clawTimer;
@@ -115,6 +104,9 @@ public class OpTwoWheelBotHigh extends OpMode
 
     @Override
     public void init() {
+
+        // Initialize the datalog
+        if (LOG) datalog = new Datalog("TwoWheelBotHigh");
 
         // Define and Initialize Motors
         leftDrive  = hardwareMap.get(DcMotor.class, "left_drive");
@@ -135,15 +127,12 @@ public class OpTwoWheelBotHigh extends OpMode
         battery = hardwareMap.voltageSensor.get("Control Hub"); // BLACK
         
         imu = hardwareMap.get(IMU.class, "imu");
-        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.DOWN,
-    RevHubOrientationOnRobot.UsbFacingDirection.RIGHT)));
-
-        //Initial arm position: UP
-        armPositions = ArmPositions.UP;
+        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP,
+    RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD)));
 
         //Initialize the stabilized arm class, handles arm adjustment
-        stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo", imu);
-        stabilizedArm.update(servoTarget); // cause the arm to move
+        stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo");
+        pitchTarget = stabilizedArm.update(armDesiredAng); // cause the arm to move
 
         clawServo = hardwareMap.get(Servo.class, "clawServo");
         clawTimer = new ElapsedTime();
@@ -151,24 +140,17 @@ public class OpTwoWheelBotHigh extends OpMode
         // Initialize the PIDs
         yawPID.setSetpoint(0.0);    // initial yaw (turn) is zero.
 
-        if (LOG) {
-            // Initialize the datalog
-            datalog = new Datalog("twowheelHighLog");
-    
-            // You do not need to fill every field of the datalog
-            // every time you call writeLine(); those fields will simply
-            // contain the last value.
-            datalog.opModeStatus.set("INIT");
-            // Write PID constants to the log file. Not using intended fields, because this is done once at start
-            datalog.pitch.set(Kp);
-            datalog.battery.set(battery.getVoltage());
-            datalog.yaw.set(yawPID.getKp());
-            datalog.yawOdo.set(yawPID.getKi()); 
-            datalog.yawRATE.set(yawPID.getKd());
-            datalog.writeLine();
-        }
-
      }
+
+     // init loop
+    @Override
+    public void init_loop() {
+        orientation = imu.getRobotYawPitchRollAngles();
+        pitch = orientation.getPitch(AngleUnit.DEGREES);
+        telemetry.addData("Pitch (DEG)", pitch);
+        telemetry.addData("PITCH MUST BE ","CLOSE TO ZERO TO START");
+        telemetry.update();
+    }
 
     // start is run once on Start press
     @Override
@@ -181,7 +163,6 @@ public class OpTwoWheelBotHigh extends OpMode
         
         // reset the timers for the datalog timestamp, turns, runToPos
         runtime.reset();
-        turnTimer.reset();
         distTimer.reset();
         
         // reset the PIDs
@@ -196,13 +177,16 @@ public class OpTwoWheelBotHigh extends OpMode
     @Override
     public void loop() {
 
-        double stickVeloTarget = 0;
-        
         double leftTicks = leftDrive.getCurrentPosition();
         double rightTicks = rightDrive.getCurrentPosition();
         
         i++;  // index the loop counter
-        
+
+        // for the deltaTime log
+        lastTime = currentTime;
+        currentTime = runtime.seconds();
+        double deltaTime = currentTime-lastTime;
+
         orientation = imu.getRobotYawPitchRollAngles();
         angularVelocity = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
         
@@ -211,7 +195,7 @@ public class OpTwoWheelBotHigh extends OpMode
         // The following controls the turn (yaw) of the robot
         // getYaw always returns value from -2*PI to 2*PI
         rawYaw = orientation.getYaw(AngleUnit.RADIANS); 
-        // The code below makes "yaw" a continous value
+        // The code below makes "yaw" a continuous value
         double deltaYaw = rawYaw-rawPriorYaw;
         rawPriorYaw = rawYaw;
         if (deltaYaw > Math.PI) deltaYaw -= 2*Math.PI;
@@ -230,42 +214,30 @@ public class OpTwoWheelBotHigh extends OpMode
         sOdom = odometry.getS();
         theta = odometry.getTheta(); // should be the same value as imu yaw
 
-        double veloError = stickVeloTarget-veloTarget;
+        // Right joystick moves robot fwd and back, by changing velocity target
+        veloTarget = -gamepad1.left_stick_y*maxSVelo;
 
-        if (veloError >= 0.1) veloTarget += maxDeltaVelo;
-        else if (veloError < 0) veloTarget -= maxDeltaVelo;
-        else veloTarget = 0;
-
-        // Robot turns by adjusting the yaw PID setpoint
-        // bumpers provide 90 degree instant turns
-        // joystick provides smooth turns
-
-        // Right joystick moves robot fwd and back, by changing position target
-        posTarget -= gamepad1.left_stick_y*5; // add mm to position target
+        // add mm to position target, based on the velocity target
+        posTarget += veloTarget*deltaTime;
 
         // This method does the auto moves in teleop
         //myTWBmoves.handleMoveButtons(100); // mm move
 
-        posTarget = myTWBmoves.getPosTarget(posTarget);
+        //posTarget = myTWBmoves.getPosTarget(posTarget);
         //pitchTarget = myTWBmoves.getPitchTarget();
-
-        // Buttons for adjusting the pitch target
-        if(gamepad1.dpad_up){
-            pitchTarget += 0.1;
-        }
-        if(gamepad1.dpad_down){
-            pitchTarget -= 0.1;
-        }
 
         if(TUNE) tuneButtons(); // used to tune the K terms
 
-        // MAIN CONTROL CODE:
-        posError = sOdom -posTarget;
-        positionVolts = Kvelo*linearVelocity - Ks*Math.signum(posError) + Kpos*posError;
-        pitchError = pitch - pitchTarget;
-        pitchVolts = Kpitch*pitchError + KpitchRate*pitchRATE;
+        pitchTarget = stabilizedArm.update(armDesiredAng); // update arm position
 
-        totalPowerVolts = pitchVolts +  positionVolts;
+        // MAIN CONTROL CODE:
+        posError = sOdom - posTarget;
+        double veloError = linearVelocity - veloTarget;
+        double positionVolts = Kvelo*veloError - Ks*Math.signum(posError) + Kpos*posError;
+        pitchError = pitch - pitchTarget;
+        double pitchVolts = Kpitch*pitchError + KpitchRate*pitchRATE;
+
+        double totalPowerVolts = pitchVolts +  positionVolts;
 
         // The right joystick turns the robot by adjusting the yaw PID setpoint
         turn  -=  gamepad1.right_stick_x*0.02;  // get turn from gamepad (radian delta)
@@ -273,10 +245,6 @@ public class OpTwoWheelBotHigh extends OpMode
         yawPID.setSetpoint(turn); 
         yawPower = yawPID.compute(yaw);  // theta is from odometry. yaw is from imu. was yaw
 
-        // for the deltaTime log
-        lastTime = currentTime;
-        currentTime = runtime.seconds();
-        
         // Slow Power Ramp, for Ks determination
         //totalPowerVolts = (double)i * 0.002;
         
@@ -287,20 +255,17 @@ public class OpTwoWheelBotHigh extends OpMode
         if (!TUNE) {
             //Sets arm to vertical. Increment and hold are modified to properly represent the operative state
             if (gamepad1.y) {
-                armPositions = ArmPositions.UP;
-                servoTarget = 0.209;
+                armDesiredAng = 0.0;
             }
 
             //Sets arm for cargo collection (90 degrees back)
             if (gamepad1.x) {
-                armPositions = ArmPositions.BACKWARD;
-                servoTarget = 0.209 + .04;  // control hub pitch is
+                armDesiredAng = 90.0;
             }
 
             //Sets are to be slightly forward for depositing (45 deg angle)
             if (gamepad1.b) {
-                armPositions = ArmPositions.FORWARD;
-                servoTarget = 0.209 - .04;  // control hub pitch is
+                armDesiredAng = -90.0;  // control hub pitch is
             }
 
             //Controls the claw boolean
@@ -314,27 +279,24 @@ public class OpTwoWheelBotHigh extends OpMode
                 clawServo.setPosition(0.35); // open value
             }
 
-            //Arm increment with D-pad
-            if (gamepad1.dpad_right) {
-                servoTarget += 0.0005;
+            //Increment Desired Arm angle
+            if (gamepad1.right_stick_y > 0.5) {
+                armDesiredAng += 0.5;
             }
-            if (gamepad1.dpad_left) {
-                servoTarget -= 0.0005;
+            if (gamepad1.right_stick_y < -0.5) {
+                armDesiredAng -= 0.5;
             }
         }
-
-        stabilizedArm.update(servoTarget); // update arm position
 
         if (LOG) {
             // Data log 
             // Note that the order in which we set datalog fields
             // does *not* matter! Order is configured inside the Datalog class constructor.
-            datalog.opModeStatus.set("RUNNING");
             datalog.loopCounter.set(i);
             datalog.runTime.set(currentTime);
             datalog.deltaTime.set(currentTime-lastTime);
             datalog.pitch.set(pitch);
-            datalog.SetPoint.set(veloTarget);
+            datalog.pitchTarget.set(pitchTarget);
             datalog.pitchRATE.set(pitchRATE);
             datalog.yaw.set(yaw);
             datalog.yawOdo.set(turn);
@@ -346,19 +308,25 @@ public class OpTwoWheelBotHigh extends OpMode
             datalog.rightTicks.set(rightTicks);
             datalog.linVelo.set(odometry.getLinearVelocity());
             datalog.avgLinVelo.set(linearVelocity);
-            datalog.pitchPwr.set(totalPowerVolts); // PID output
-            datalog.yawPwr.set(yawPower);  // PID output
-            datalog.battery.set(currentVoltage);
+            datalog.veloTarget.set(veloTarget);
+            datalog.positionVolts.set(positionVolts);
+            datalog.pitchVolts.set(pitchVolts);
+            datalog.totalVolts.set(totalPowerVolts);
+            datalog.yawPwr.set(yawPower*currentVoltage);
+            datalog.battery.set(battery.getVoltage());
             
             // The logged timestamp is taken when writeLine() is called.
             datalog.writeLine();
         }
-        telemetry.addData("Distance Traveled Odometry s (mm)","%.1f ", sOdom);
-        telemetry.addData("Linear Velocity (mm/sec)", "%.1f ",linearVelocity);
+        telemetry.addData("s position target (mm)", "%.1f ",posTarget);
+        telemetry.addData("s position Odometry (mm)","%.1f ", sOdom);
+        telemetry.addData("Velocity target (mm/sec)","%.1f ", veloTarget);
+        telemetry.addData("Velocity (mm/sec)", "%.1f ",linearVelocity);
         telemetry.addData("Total Power Volts", totalPowerVolts);
-        telemetry.addData("Pitch Target dpad up-down (degrees)", pitchTarget);
+        telemetry.addData("Pitch Target (degrees)", pitchTarget);
         telemetry.addData("Pitch (degrees)", pitch);
-        telemetry.addData("Arm Servo target ", servoTarget);
+        telemetry.addData("Arm Desired Angle", armDesiredAng);
+        telemetry.addData("Arm Servo Angle ",stabilizedArm.getArmAngle(armDesiredAng));
         telemetry.addData("Arm Servo getPosition ", stabilizedArm.getPosition());
         telemetry.addData("Claw Servo target ", clawServo.getPosition());
         telemetry.addData("turn setpoint (RADIANS)",turn);
@@ -377,14 +345,12 @@ public class OpTwoWheelBotHigh extends OpMode
 
         // These are all of the fields that we want in the datalog.
         // Note that order here is NOT important. The order is important in the setFields() call below
-        public Datalogger.GenericField opModeStatus = new Datalogger.GenericField("OpModeStatus");
         public Datalogger.GenericField loopCounter  = new Datalogger.GenericField("LoopCounter");
         public Datalogger.GenericField runTime      = new Datalogger.GenericField("RunTime");
         public Datalogger.GenericField deltaTime    = new Datalogger.GenericField("deltaTime");
         public Datalogger.GenericField pitch        = new Datalogger.GenericField("Pitch");
-        public Datalogger.GenericField SetPoint = new Datalogger.GenericField("SetPoint");
+        public Datalogger.GenericField pitchTarget = new Datalogger.GenericField("PitchTarget");
         public Datalogger.GenericField pitchRATE    = new Datalogger.GenericField("pitchRATE");
-//        public Datalogger.GenericField pitchIntegral = new Datalogger.GenericField("pitchIntegral");
         public Datalogger.GenericField yaw          = new Datalogger.GenericField("Yaw");
         public Datalogger.GenericField yawOdo       = new Datalogger.GenericField("Turn"); // WAS yawOdo
         public Datalogger.GenericField yawTheta     = new Datalogger.GenericField("Theta"); 
@@ -394,10 +360,12 @@ public class OpTwoWheelBotHigh extends OpMode
         public Datalogger.GenericField leftTicks    = new Datalogger.GenericField("leftTicks");
         public Datalogger.GenericField rightTicks    = new Datalogger.GenericField("rightTicks");
         public Datalogger.GenericField linVelo    = new Datalogger.GenericField("linearVelo");
+        public Datalogger.GenericField veloTarget    = new Datalogger.GenericField("VeloTarget");
         public Datalogger.GenericField avgLinVelo    = new Datalogger.GenericField("AvgLinearVelo");
-        public Datalogger.GenericField error = new Datalogger.GenericField("error");
-        public Datalogger.GenericField pitchPwr = new Datalogger.GenericField("PitchPower");
-        public Datalogger.GenericField yawPwr = new Datalogger.GenericField("yawPwr");
+        public Datalogger.GenericField positionVolts = new Datalogger.GenericField("positionVolts");
+        public Datalogger.GenericField pitchVolts = new Datalogger.GenericField("pitchVolts");
+        public Datalogger.GenericField totalVolts = new Datalogger.GenericField("totalVolts");
+        public Datalogger.GenericField yawPwr = new Datalogger.GenericField("yawPower");
         public Datalogger.GenericField battery      = new Datalogger.GenericField("Battery");
 
         public Datalog(String name)
@@ -415,14 +383,12 @@ public class OpTwoWheelBotHigh extends OpMode
                     // Note that order *IS* important here! The order in which we list
                     // the fields is the order in which they will appear in the log.
                     .setFields(
-                            opModeStatus,
                             loopCounter,
                             runTime,
                             deltaTime,
                             pitch,
-                            SetPoint,
+                            pitchTarget,
                             pitchRATE,
-                            //pitchIntegral,
                             yaw,
                             yawOdo,
                             yawTheta,
@@ -432,9 +398,11 @@ public class OpTwoWheelBotHigh extends OpMode
                             leftTicks,
                             rightTicks,
                             linVelo,
+                            veloTarget,
                             avgLinVelo,
-                            error,
-                            pitchPwr,
+                            positionVolts,
+                            pitchVolts,
+                            totalVolts,
                             yawPwr,
                             battery
                     )
@@ -449,8 +417,8 @@ public class OpTwoWheelBotHigh extends OpMode
         }
     }
     public void tuneButtons() {
-        // buttons for tunning feedback constants
-        // CAUTION, USING DISTTIMER
+        // buttons for tuning feedback constants
+        // NOTE, USING distTimer for length of moves
         double rT = 0.2; // run time in seconds
 
         if (gamepad1.dpad_up && distTimer.seconds()>rT) {

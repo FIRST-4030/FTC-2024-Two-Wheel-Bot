@@ -8,6 +8,7 @@ Drive Mode: the Left stick moves the robot fwd and back, the Right stick turns.
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -19,7 +20,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
-//@Disabled
+@Disabled
 @TeleOp(name = "2WheelBot_LowCG")
 public class OpTwoWheelBotLow extends OpMode
 {
@@ -139,7 +140,7 @@ public class OpTwoWheelBotLow extends OpMode
         armPositions = ArmPositions.UP;
 
         //Initialize the stabilized arm class, handles arm adjustment
-        stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo", imu);
+        stabilizedArm = new ServoHoldPosition(hardwareMap, "arm_servo");
         stabilizedArm.update(servoTarget); // cause the arm to move
 
         clawServo = hardwareMap.get(Servo.class, "clawServo");

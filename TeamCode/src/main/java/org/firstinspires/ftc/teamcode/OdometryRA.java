@@ -147,7 +147,7 @@ public class OdometryRA {
     }
 
     public double getTheta() {
-        return noNormalTheta;
+        return -theta;
     }
 
     public double getLinearVelocity() {
