@@ -272,7 +272,7 @@ public class PiecewiseFunction {
     }
 
     /**
-     * Given an X value, calculate the appropriate Y value respecting all of the various setttings.
+     * Given an X value, calculate the appropriate Y value respecting all of the various settings.
      */
     public double getY(double X) {
         // if there is an error, return the default value;
