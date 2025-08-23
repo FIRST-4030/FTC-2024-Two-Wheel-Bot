@@ -18,21 +18,21 @@ public class TWBOdometry {
     private double x = 0;
     private double y = 0;
     private double s = 0;  // total distance regardless of direction
-    private double theta = 0; // orientation angle in radians
-    //private double noNormalTheta = 0;
+    private double theta = 0; // orientation angle in radians (-pi to pi)
+    private double noNormalTheta = 0; // continuous orientation angle
 
     private double linearVelocity = 0.0;
-    private RunningAverage veloAvg;   // Running average of linear velocity
+    final private RunningAverage veloAvg;   // Running average of linear velocity
     
-    private RunningAverage leftDistAvg; // Running average of left encoder
-    private RunningAverage rightDistAvg; // Running average of left encoder
+    final private RunningAverage leftDistAvg; // Running average of left encoder
+    final private RunningAverage rightDistAvg; // Running average of left encoder
 
     // Constructor,  provide wheel base in mm
     public TWBOdometry(double wheelBase, double wheelDia, double initialPitch) {
         this.wheelBase = wheelBase;
         this.wheelCircumference = wheelDia*Math.PI; // convert diameter to circumference
         this.lastPitch = initialPitch; // robots initial pitch, probably not zero
-        this.veloAvg = new RunningAverage(5);
+        this.veloAvg = new RunningAverage(7);
         this.leftDistAvg = new RunningAverage(4);
         this.rightDistAvg = new RunningAverage(4);
     }
@@ -77,6 +77,7 @@ public class TWBOdometry {
 
         // Calculate the change in orientation
         deltaTheta = (deltaLeft- deltaRight) / wheelBase;
+        //deltaTheta = Math.atan2((deltaLeft- deltaRight),wheelBase); // more accurate, but not much
 
         // Calculate the average distance traveled
         deltaDistance = (deltaLeft + deltaRight) / 2;
@@ -92,15 +93,16 @@ public class TWBOdometry {
         } else {
             // Robot is rotating around a point
             double radius = deltaDistance / deltaTheta;
+            //double radius = (deltaDistance/2) / Math.tan(deltaTheta); // more accurate, but not much
             double centerX = x - radius * Math.sin(theta);
             double centerY = y + radius * Math.cos(theta);
             theta += deltaTheta;
+            noNormalTheta += deltaTheta;
             x = centerX + radius * Math.sin(theta);
             y = centerY - radius * Math.cos(theta);
         }
 
         // Normalize theta to the range [-pi, pi]
-        //noNormalTheta = theta;
         theta = normalizeAngle(theta);
     }
 
@@ -130,7 +132,7 @@ public class TWBOdometry {
     }
 
     public double getTheta() {
-        return -theta;
+        return -noNormalTheta;
     }
 
     public double getLinearVelocity() {

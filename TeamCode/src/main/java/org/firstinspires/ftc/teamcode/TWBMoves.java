@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 public class TWBMoves {
     // members
-    private OpMode myOpMode; // To enable using gamepad1 and telemetry
+    final private OpMode myOpMode; // To enable using gamepad1 and telemetry
     
     private boolean runToRunning = false;
     private double rT = 2.0; // position profile run time in seconds
@@ -20,16 +20,14 @@ public class TWBMoves {
     private boolean reverseDir = false; // for running backwards
     
     // PieceWise member for position profiling
-    private PiecewiseFunction posVector = new PiecewiseFunction();
+    final private PiecewiseFunction posVector = new PiecewiseFunction();
     
     // PieceWise member for pitch profiling
-    private PiecewiseFunction pitchVector = new PiecewiseFunction();
+    final private PiecewiseFunction pitchVector = new PiecewiseFunction();
     
-    private ElapsedTime moveTimer= new ElapsedTime();
-    private ElapsedTime buttonTimer= new ElapsedTime();
+    final private ElapsedTime moveTimer= new ElapsedTime();
+    final private ElapsedTime buttonTimer= new ElapsedTime();
 
-    private double max_v;
-    private double max_a;
     private int sign = 1;
 
     // Constructor
@@ -123,6 +121,8 @@ public class TWBMoves {
     }
     
     private void setPitchScaler() {
+        double max_v;
+        double max_a;
         max_v = 2.0 * posShift / rT;
         max_a = 4.0 * max_v / rT;
         this.pitchScaler = ( max_a / 8.0) / 10.0; // convert from cm to mm
@@ -167,5 +167,69 @@ public class TWBMoves {
         } */
         
     }
- 
+/*
+public class MotionController {
+
+    private double maxVelocity;
+    private double maxAcceleration;
+
+    public MotionController(double maxVelocity, double maxAcceleration) {
+        this.maxVelocity = maxVelocity;
+        this.maxAcceleration = maxAcceleration;
+    }
+
+    //
+     * Calculates the next state (position, velocity) given the current state and a target position,
+     * respecting maximum velocity and acceleration.
+     *
+     * @param currentPosition The current position.
+     * @param currentVelocity The current velocity.
+     * @param targetPosition  The desired target position.
+     * @param deltaTime       The time step for the update.
+     * @return A double array containing [newPosition, newVelocity].
+     //
+public double[] calculateNextState(double currentPosition, double currentVelocity, double targetPosition, double deltaTime) {
+    double distanceToTarget = targetPosition - currentPosition;
+
+    // Determine direction of motion
+    int direction = (distanceToTarget > 0) ? 1 : -1;
+
+    // Calculate stopping distance required for current velocity
+    double stoppingDistance = (currentVelocity * currentVelocity) / (2 * maxAcceleration);
+
+    double acceleration = 0;
+
+    // If approaching target and need to decelerate
+    if (Math.abs(distanceToTarget) <= stoppingDistance && Math.signum(currentVelocity) == direction) {
+        // Decelerate
+        acceleration = -direction * maxAcceleration;
+    } else {
+        // Accelerate towards target, or maintain velocity
+        acceleration = direction * maxAcceleration;
+    }
+
+    // Calculate new velocity
+    double newVelocity = currentVelocity + acceleration * deltaTime;
+
+    // Limit new velocity to maxVelocity
+    newVelocity = Math.min(Math.abs(newVelocity), maxVelocity) * Math.signum(newVelocity);
+
+    // If we need to decelerate and new velocity crosses zero, set to zero
+    if (Math.signum(currentVelocity) != Math.signum(newVelocity) && Math.abs(distanceToTarget) <= stoppingDistance) {
+        newVelocity = 0;
+    }
+
+    // Calculate new position
+    double newPosition = currentPosition + newVelocity * deltaTime + 0.5 * acceleration * deltaTime * deltaTime;
+
+    // Ensure we don't overshoot the target
+    if (Math.signum(distanceToTarget) != Math.signum(targetPosition - newPosition)) {
+        newPosition = targetPosition;
+        newVelocity = 0;
+    }
+
+    return new double[]{newPosition, newVelocity};
+}
+}
+ */
 }
