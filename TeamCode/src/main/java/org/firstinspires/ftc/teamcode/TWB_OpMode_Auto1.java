@@ -1,0 +1,68 @@
+/* This Iterative Autonomous OpMode is for a Two Wheel Balancing Robot with Arm
+ */
+
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+
+/*
+ * This Iterative Autonomous OpMode is for a Two Wheel Balancing Robot with Arm
+ */
+@Autonomous(name="TWB Autonomous 1")
+//@Disabled
+public class TWB_OpMode_Auto1 extends OpMode
+{
+    // Declare OpMode members.
+    private TwoWheelBalanceBot twb;
+
+    private TWBMoves myTWBmoves = new TWBMoves(this); // used for auto
+
+    /*
+     * Code to run ONCE when the driver hits INIT
+     */
+    @Override
+    public void init() {
+        twb = new TwoWheelBalanceBot(hardwareMap,this); // Create twb object
+
+        twb.TUNE = false;
+        twb.LOG = true;
+    }
+
+    /*
+     * Code to run REPEATEDLY after the driver hits INIT, but before they hit START
+     */
+    @Override
+    public void init_loop() {
+        telemetry.addData("AUTO", "INIT LOOP");
+
+        twb.auto_right_loop(); // gets the robot into a position to self right
+
+        twb.init_loop(); // provides user a chance to change the K terms
+
+        telemetry.update();
+    }
+
+    /*
+     * Code to run ONCE when the driver hits START
+     */
+    @Override
+    public void start() {
+
+        twb.start(); // gets the latest state of the robot before running
+    }
+
+    /*
+     * Code to run REPEATEDLY after the driver hits START but before they hit STOP
+     */
+    @Override
+    public void loop() {
+
+        myTWBmoves.getPosTarget(0);
+
+        twb.loop();  // MAIN CONTROL SYSTEM
+
+        telemetry.update();
+    }
+}

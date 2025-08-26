@@ -39,23 +39,23 @@ public class TWBArmServo {
 
         pitchAngVec.debug = false;
         pitchAngVec.setClampLimits(false);
-        pitchAngVec.addElement(-160,5.31953); // new global arm angle is -154.68
-        pitchAngVec.addElement(-140,9.48606); // new global arm angle is -130.514
-        pitchAngVec.addElement(-120,11.8906); // new global arm angle is -108.109
-        pitchAngVec.addElement(-100,12.5079); // new global arm angle is -87.4921
-        pitchAngVec.addElement(-80,11.626); // new global arm angle is -68.374
-        pitchAngVec.addElement(-60,9.61346); // new global arm angle is -50.3865
-        pitchAngVec.addElement(-40,6.81452); // new global arm angle is -33.1855
-        pitchAngVec.addElement(-20,3.52474); // new global arm angle is -16.4753
+        pitchAngVec.addElement(-160,4.26974); // new global arm angle is -155.73
+        pitchAngVec.addElement(-140,7.69909); // new global arm angle is -132.301
+        pitchAngVec.addElement(-120,9.78656); // new global arm angle is -110.213
+        pitchAngVec.addElement(-100,10.4355); // new global arm angle is -89.5645
+        pitchAngVec.addElement(-80,9.81183); // new global arm angle is -70.1882
+        pitchAngVec.addElement(-60,8.18526); // new global arm angle is -51.8147
+        pitchAngVec.addElement(-40,5.83785); // new global arm angle is -34.1622
+        pitchAngVec.addElement(-20,3.03044); // new global arm angle is -16.9696
         pitchAngVec.addElement(0,0); // new global arm angle is 0
-        pitchAngVec.addElement(20,-3.52474); // new global arm angle is 16.4753
-        pitchAngVec.addElement(40,-6.81452); // new global arm angle is 33.1855
-        pitchAngVec.addElement(60,-9.61346); // new global arm angle is 50.3865
-        pitchAngVec.addElement(80,-11.626); // new global arm angle is 68.374
-        pitchAngVec.addElement(100,-12.5079); // new global arm angle is 87.4921
-        pitchAngVec.addElement(120,-11.8906); // new global arm angle is 108.109
-        pitchAngVec.addElement(140,-9.48606); // new global arm angle is 130.514
-        pitchAngVec.addElement(160,-5.31953); // new global arm angle is 154.68
+        pitchAngVec.addElement(20,-3.03044); // new global arm angle is 16.9696
+        pitchAngVec.addElement(40,-5.83785); // new global arm angle is 34.1622
+        pitchAngVec.addElement(60,-8.18526); // new global arm angle is 51.8147
+        pitchAngVec.addElement(80,-9.81183); // new global arm angle is 70.1882
+        pitchAngVec.addElement(100,-10.4355); // new global arm angle is 89.5645
+        pitchAngVec.addElement(120,-9.78656); // new global arm angle is 110.213
+        pitchAngVec.addElement(140,-7.69909); // new global arm angle is 132.301
+        pitchAngVec.addElement(160,-4.26974); // new global arm angle is 155.73
         }
 
     public void setArmAngle(double armAngle) {targetPos =armAngle;}

@@ -27,7 +27,7 @@ public class TWBOdometry {
     final private RunningAverage leftDistAvg; // Running average of left encoder
     final private RunningAverage rightDistAvg; // Running average of left encoder
 
-    // Constructor,  provide wheel base in mm
+    // Constructor,  provide wheel base and wheel dia in mm, initialPitch in degrees
     public TWBOdometry(double wheelBase, double wheelDia, double initialPitch) {
         this.wheelBase = wheelBase;
         this.wheelCircumference = wheelDia*Math.PI; // convert diameter to circumference
@@ -35,6 +35,21 @@ public class TWBOdometry {
         this.veloAvg = new RunningAverage(7);
         this.leftDistAvg = new RunningAverage(4);
         this.rightDistAvg = new RunningAverage(4);
+
+        // initialize the running averages with some zeros to smooth out the startup
+        veloAvg.addNumber(0);
+        veloAvg.addNumber(0);
+        veloAvg.addNumber(0);
+        veloAvg.addNumber(0);
+
+        leftDistAvg.addNumber(0);
+        leftDistAvg.addNumber(0);
+        leftDistAvg.addNumber(0);
+
+        rightDistAvg.addNumber(0);
+        rightDistAvg.addNumber(0);
+        rightDistAvg.addNumber(0);
+
     }
 
     /**
