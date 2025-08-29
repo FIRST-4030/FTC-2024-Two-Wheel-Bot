@@ -58,7 +58,7 @@ public class TWBArmServo {
         pitchAngVec.addElement(160,-4.26974); // new global arm angle is 155.73
         }
 
-    public void setArmAngle(double armAngle) {targetPos =armAngle;}
+    public void setArmAngle(double armAngle) {targetPos = armAngle;}
 
     public double updateArm(double deltaTime){
         // TAKE DESIRED ARM ANGLE AND SET SERVO VALUE AND RETURN PITCH SETPOINT

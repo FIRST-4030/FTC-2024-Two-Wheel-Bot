@@ -18,7 +18,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 /*
- * Not an OpMode!
+ * Not an OpMode! Top class is for a Two Wheel Balancing Robot With Arm
  */
 public class TwoWheelBalanceBot {
     final private OpMode theOpmode; // Set during construction.  Enables using telemetry and gamepad
@@ -29,11 +29,11 @@ public class TwoWheelBalanceBot {
     Datalog datalog; // create the data logger object
 
     // These are the state terms for a two wheel balancing robot
-    double Kpitch = -0.90; // volts/degree
+    double Kpitch = -0.95; // volts/degree
     double KpitchRate = -0.025; // volts/degrees/sec
 
-    double Kpos = 0.045;  // volts/mm For high balancing (unstable) this term is positive
-    double Kvelo = 0.017;  // volts/mm/sec For high balancing (unstable) this term is positive
+    double Kpos = 0.048;  // volts/mm For high balancing (unstable) this term is positive
+    double Kvelo = 0.015;  // volts/mm/sec For high balancing (unstable) this term is positive
 
     static final double TICKSPERMM = 1.7545; // REV SPUR 40:1, 8in wheels
     static final double WHEELBASE = 300; // robot Wheel base (mm)
@@ -42,20 +42,26 @@ public class TwoWheelBalanceBot {
     // YAW PID
     PIDController yawPID = new PIDController(0.45, 0.12, 0.05); // kp, ki, kd
 
-    double posTarget = 0.0;  // from the user joystick
+    public double posTarget = 0.0;  // from the user joystick in teleop or from auto routines
     double oldPosTarget = 0.0;
     double veloTarget = 0.0;
     double oldVeloTarget = 0.0;
-    double accelTarget = 0.0;
-    double accelPitchAdjust = 0.0;
-    private final RunningAverage accelTargetRA = new RunningAverage(3); // Running average of linear
+    //double accelTarget = 0.0;
+    public double autoPitchTarget = 0; // used to set pitch from an auto routine
+    //double accelPitchAdjust = 0.0;
+    //private final RunningAverage accelTargetRA = new RunningAverage(3); // Running average of linear
 
     double pitch = 0; // degrees, value got from imu
+    double zeroVoltsAdjust = 0.0; //
+    double pitchError = 0;
 
+    public double yawTarget = 0.0; // from the user joystick in teleop or from auto routines
     double yaw = 0;
     double priorYaw = 0;
     double rawYaw, rawPriorYaw = 0;
-    double yawRATE, yawPower;
+    double yawRATE; // not used other than for datalog
+    double yawPower;
+    public boolean ClawIsClosed = false; //Claw boolean
 
     final private IMU imu;
     private YawPitchRollAngles orientation;   // part of FIRST navigation classes
@@ -64,7 +70,7 @@ public class TwoWheelBalanceBot {
     double currentVoltage = 12.0;
 
     //Handles the arm control, and adjusting the arm for the pitch of the robot
-    final private TWBArmServo theArm;
+    final public TWBArmServo theArm;
 
     public DcMotor leftDrive;
     public DcMotor rightDrive;
@@ -79,23 +85,22 @@ public class TwoWheelBalanceBot {
     private double currentTime;
     double deltaTime = 0.02;
 
-    double turn = 0.0;
-    double sOdom, theta;  // used with odometry
+    public double sOdom; // Current robot position from odometry
+    double theta;  // used with odometry
 
     double armPitchTarget = 0; // degrees
-    double pitchError = 0;
 
     //Timer to limit how frequently the claw opens the closes
     ElapsedTime clawTimer = new ElapsedTime();
     Servo clawServo;
-    boolean isClawOpen = false; //Claw boolean
+
 
     // Constructor.  Call once in init()
     public TwoWheelBalanceBot(HardwareMap hardwareMap, OpMode opMode) {
 
         this.theOpmode = opMode; // set the opmode that is calling this class
         // Initialize the datalog
-        if (LOG) datalog = new Datalog("TwoWheelBotAug26");
+        if (LOG) datalog = new Datalog("TwoWheelBotAug29");
 
         deltaTimeRA.addNumber(0.02); // add to running average to smooth start
         deltaTimeRA.addNumber(0.02);
@@ -127,38 +132,41 @@ public class TwoWheelBalanceBot {
 
         // Initialize the arm class
         // ARM LIMITS ARE DEFINED IN ArmServoTWB class
-        theArm = new TWBArmServo(hardwareMap, "arm_servo", 0.0, 130, -150, 60);
+        theArm = new TWBArmServo(hardwareMap, "arm_servo", 0.0, 140, -150, 70);
         // NOTE: Set arm angle to zero to rig the servo (so it is easy to see)
 
         clawServo = hardwareMap.get(Servo.class, "clawServo");
 
-        yawPID.setSetpoint(0.0);    // initial yaw (turn) is zero.
+        yawPID.setSetpoint(0.0);    // initial yaw (yawTarget) is zero.
     }
 
     // init loop
     public void init_loop() {
 
         if (TUNE) tuneButtons(); // used to tune the K terms
+        theOpmode.telemetry.addData("TUNE", TUNE);
 
+        theOpmode.telemetry.addData("LOG", LOG);
     }
 
     // Gets the robot into a position to self right
     public void auto_right_loop() {
-        theOpmode.telemetry.addData("AUTO-", "RIGHT");
+        theOpmode.telemetry.addData("AUTO-RIGHT", "ACTIVE");
         orientation = imu.getRobotYawPitchRollAngles();
         pitch = orientation.getPitch(AngleUnit.DEGREES);
         theOpmode.telemetry.addData("Pitch (DEG)", pitch);
 
         // Check which way the robot is leaning and rotate the arm so that it will self-right
-        if (pitch > 0.0) theArm.setArmAngle(130.0);
-        else theArm.setArmAngle(-140.0);
+        if (pitch > 0.0) theArm.setArmAngle(140.0);
+        else theArm.setArmAngle(-150.0);
         theOpmode.telemetry.addData("Arm Angle (DEG)", theArm.getAngle());
         armPitchTarget = theArm.updateArm(0.02); // This will make the arm move
     }
 
-    // Gets the robot into a position to self right
-    public void arm_rig_loop() {
+    // Gets the servos ready for attaching the horns (rigging)
+    public void servo_rig_loop() {
         theOpmode.telemetry.addData("ARM", "RIGGING");
+        theOpmode.telemetry.addData("ATTACH ARM", "STRAIGHT UP");
 
         orientation = imu.getRobotYawPitchRollAngles();
         pitch = orientation.getPitch(AngleUnit.DEGREES);
@@ -167,10 +175,21 @@ public class TwoWheelBalanceBot {
         theArm.setArmAngle(0.0);
         theOpmode.telemetry.addData("Arm Angle (DEG)", theArm.getAngle());
         armPitchTarget = theArm.updateArm(0.02); // This will make the arm move
+
+        clawServo.setPosition(0.98);
+        theOpmode.telemetry.addData("CLAW", "RIGGING");
+        theOpmode.telemetry.addData("ATTACH CLAW", "CLOSED");
     }
 
     // start is run once on Start press
     public void start() {
+        // reset the encoders because the robot may have moved during auto righting
+        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        leftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
         orientation = imu.getRobotYawPitchRollAngles();
         pitch = orientation.getPitch(AngleUnit.DEGREES);
         imu.resetYaw(); // set the yaw value to zero
@@ -185,13 +204,13 @@ public class TwoWheelBalanceBot {
         // Get the current voltage just before loop, so that balance control is more consistent
         // Note: getting voltage in loop() can cause feedback issues
         currentVoltage = battery.getVoltage();
-
         currentTime = runtime.seconds(); // initialize current time for delta time values
+
+        theArm.setArmAngle(0.0);
     }
 
     // MAIN LOOP
     // Teleoperated inputs are removed from the main loop method, so loop can be used in auto
-
     public void loop() {
         double leftTicks = leftDrive.getCurrentPosition();
         double rightTicks = rightDrive.getCurrentPosition();
@@ -223,13 +242,17 @@ public class TwoWheelBalanceBot {
         // The robot pitch target is determined by the angle of the arm.
         armPitchTarget = theArm.updateArm(deltaTime); // update arm position (this makes it move)
 
-        if (TUNE) tuneButtons(); // used to tune the K terms
+        if (TUNE) {
+            tuneButtons(); // used to tune the K terms
+            adjustThingButtons();
+        }
 
         // MAIN BALANCE CONTROL CODE:
         double posError = sOdom - posTarget;  // Pos Target is from joystick
         double veloError = linearVelocity + veloTarget;  // ADD VELO TARGET
         double positionVolts = Kvelo * veloError + Kpos * posError;
-        pitchError = pitch - armPitchTarget; // - accelPitchAdjust;   // ADD ACCEL PITCH ADJUSTMENT
+        double sumPitchTarget = armPitchTarget + autoPitchTarget;
+        pitchError = pitch - sumPitchTarget; // - accelPitchAdjust;   // ADD ACCEL PITCH ADJUSTMENT
         // Kpitch needs to decrease when the arm is down
         double newKpitch = Kpitch * Math.cos((Math.PI/180)*theArm.getAngle() / 2.6);
         double pitchVolts = newKpitch * pitchError + KpitchRate * pitchRATE;
@@ -246,12 +269,19 @@ public class TwoWheelBalanceBot {
         yaw = priorYaw + deltaYaw;
         priorYaw = yaw;
 
-        yawPID.setSetpoint(turn);
+        yawPID.setSetpoint(yawTarget);
         yawPower = yawPID.compute(yaw);
 
+        // limit the total volts
+        if (totalPowerVolts > 12) totalPowerVolts = 12;
+        else if (totalPowerVolts < -12) totalPowerVolts = -12;
+
          // Set the motor power for both wheels
-        leftDrive.setPower(totalPowerVolts / currentVoltage - yawPower);
-        rightDrive.setPower(totalPowerVolts / currentVoltage + yawPower);
+        leftDrive.setPower(totalPowerVolts / currentVoltage - yawPower + zeroVoltsAdjust);
+        rightDrive.setPower(totalPowerVolts / currentVoltage + yawPower + zeroVoltsAdjust);
+
+        if (ClawIsClosed) clawServo.setPosition(0.98); // closed value (changed .90 to .98)
+        else clawServo.setPosition(0.5); // open value (WAS 0.35)
 
         if (LOG) {
             // Data log 
@@ -263,12 +293,12 @@ public class TwoWheelBalanceBot {
             datalog.pos.set(sOdom);
             datalog.posTarget.set(posTarget);
             datalog.veloTarget.set(veloTarget);
-            datalog.accelTarget.set(accelTarget);
+            //datalog.accelTarget.set(accelTarget);
             datalog.pitch.set(pitch);
-            datalog.pitchTarget.set(accelPitchAdjust);
+            datalog.pitchTarget.set(sumPitchTarget);
             datalog.pitchRATE.set(pitchRATE);
             datalog.yaw.set(yaw);
-            datalog.yawOdo.set(turn);
+            datalog.yawTarget.set(yawTarget);
             datalog.yawTheta.set(theta);
             datalog.yawRATE.set(angularVelocity.zRotationRate);
             datalog.x.set(odometry.getX());
@@ -291,11 +321,13 @@ public class TwoWheelBalanceBot {
         theOpmode.telemetry.addData("s position Odometry (mm)", "%.1f ", sOdom);
         theOpmode.telemetry.addData("Velocity (mm/sec)", "%.1f ", linearVelocity);
         theOpmode.telemetry.addData("Arm Target Angle", theArm.getTargetAngle());
-        theOpmode.telemetry.addData("Arm Current Angle", theArm.getAngle());
-        theOpmode.telemetry.addData("Arm Servo getPosition ", theArm.getPosition());
+        //theOpmode.telemetry.addData("Arm Current Angle", theArm.getAngle());
+        //theOpmode.telemetry.addData("Arm Servo getPosition ", theArm.getPosition());
+        theOpmode.telemetry.addData("Pitch IMU (degrees)", "%.1f ", pitch);
+        theOpmode.telemetry.addData("Pitch Target (degrees)", "%.1f ", sumPitchTarget);
 
         // kill the robot if it pitches over or runs fast
-        if (pitch > 80  || pitch < -80 || linearVelocity > 1000 || linearVelocity < -1000) {
+        if (pitch > 80  || pitch < -80 || linearVelocity > 1500 || linearVelocity < -1500) {
             theOpmode.requestOpModeStop(); // Stop the opmode
         }
     }
@@ -318,9 +350,9 @@ public class TwoWheelBalanceBot {
         public Datalogger.GenericField pos = new Datalogger.GenericField("PosCurrent");
         public Datalogger.GenericField posTarget = new Datalogger.GenericField("PosTarget");
         public Datalogger.GenericField veloTarget = new Datalogger.GenericField("VeloTarget");
-        public Datalogger.GenericField accelTarget = new Datalogger.GenericField("AccelTarget");
+        //public Datalogger.GenericField accelTarget = new Datalogger.GenericField("AccelTarget");
         public Datalogger.GenericField yaw = new Datalogger.GenericField("Yaw");
-        public Datalogger.GenericField yawOdo = new Datalogger.GenericField("Turn"); // WAS yawOdo
+        public Datalogger.GenericField yawTarget = new Datalogger.GenericField("yawTarget");
         public Datalogger.GenericField yawTheta = new Datalogger.GenericField("Theta");
         public Datalogger.GenericField yawRATE = new Datalogger.GenericField("yawRATE");
         public Datalogger.GenericField x = new Datalogger.GenericField("x");
@@ -359,9 +391,9 @@ public class TwoWheelBalanceBot {
                             pos,
                             posTarget,
                             veloTarget,
-                            accelTarget,
+                            //accelTarget,
                             yaw,
-                            yawOdo,
+                            yawTarget,
                             yawTheta,
                             yawRATE,
                             x,
@@ -385,6 +417,22 @@ public class TwoWheelBalanceBot {
         public void writeLine() {
             datalogger.writeLine();
         }
+    }
+
+    public void adjustThingButtons() {
+        // buttons for tuning feedback constants
+        // NOTE, USING distTimer for length of moves
+        double rT = 0.2; // run time in seconds
+
+        if (theOpmode.gamepad1.left_stick_button && distTimer.seconds() > rT) {
+            zeroVoltsAdjust += 0.1;
+            distTimer.reset();
+        } else if (theOpmode.gamepad1.right_stick_button && distTimer.seconds() > rT) {
+            zeroVoltsAdjust -= 0.1;
+            distTimer.reset();
+        }
+        theOpmode.telemetry.addData("STICK BUTTONS", "ADJUST ZERO VOLTS");
+        theOpmode.telemetry.addData("Zero Volts Adjust (volts)", "%.1f ", zeroVoltsAdjust);
     }
 
     public void tuneButtons() {
@@ -442,17 +490,15 @@ public class TwoWheelBalanceBot {
         //Controls the claw boolean
         if ((theOpmode.gamepad1.right_trigger > 0.5) && clawTimer.milliseconds() > 333) {
             clawTimer.reset();
-            isClawOpen = !isClawOpen;
+            ClawIsClosed = !ClawIsClosed;
 
-            if (isClawOpen) theArm.setArmAngle(theArm.getAngle() + 5.0);  // raise the arm a bit
+            if (ClawIsClosed) theArm.setArmAngle(theArm.getAngle() + 5.0);  // raise the arm a bit
         }
-        if (isClawOpen) clawServo.setPosition(0.98); // closed value (changed .90 to .98)
-        else clawServo.setPosition(0.35); // open value
-    }
+     }
     public void turn_teleop() {
         // Robot Turning:
         // The right joystick turns the robot by adjusting the yaw PID turn setpoint
-        turn -= theOpmode.gamepad1.right_stick_x * 0.04;  // get turn from gamepad (radian)
+        yawTarget -= theOpmode.gamepad1.right_stick_x * 0.04;  // get turn from gamepad (radian)
     }
     public void forward_teleop() {
         // Right joystick moves robot forward and back
@@ -464,17 +510,20 @@ public class TwoWheelBalanceBot {
         oldVeloTarget = veloTarget;
         veloTarget =  (posTarget-oldPosTarget) / deltaTime;
         // acceleration is very choppy and needs to have a running average applied
-        accelTarget = (veloTarget-oldVeloTarget) / deltaTime;
-        accelTargetRA.addNumber(accelTarget);
-        accelTarget = accelTargetRA.getAverage();
+        //accelTarget = (veloTarget-oldVeloTarget) / deltaTime;
+        //accelTargetRA.addNumber(accelTarget);
+        //accelTarget = accelTargetRA.getAverage();
         // pitch adjustment due to acceleration. gravity = 9801 mm/sec^2
-        accelPitchAdjust = 0.1 * (180/Math.PI) * (accelTarget/9801.0); // in degrees
-        if (accelPitchAdjust > 5) accelPitchAdjust = 5;
-        else if (accelPitchAdjust < -5) accelPitchAdjust = -5;
+        //accelPitchAdjust = 0.1 * (180/Math.PI) * (accelTarget/9801.0); // in degrees
+        //if (accelPitchAdjust > 5) accelPitchAdjust = 5;
+        //else if (accelPitchAdjust < -5) accelPitchAdjust = -5;
 
     }
+    /*
     public void slow_ramp() {
+
         // Slow Power Ramp, for Ks determination
         //totalPowerVolts = (double)i * 0.002;
     }
+     */
 }

@@ -36,7 +36,7 @@ public class TWB_OpMode_Rigging extends OpMode
 
         twb.init_loop(); // provides user a chance to change the K terms
 
-        twb.arm_rig_loop();
+        twb.servo_rig_loop();
 
         telemetry.update();
     }
@@ -56,15 +56,15 @@ public class TWB_OpMode_Rigging extends OpMode
     @Override
     public void loop() {
 
-        // get teleoperated inputs first
+        // get teleoperated inputs
 
-        //twb.forward_teleop();
+        twb.forward_teleop();
+
+        twb.turn_teleop();
 
         twb.arm_teleop();
 
         twb.claw_teleop();
-
-        //twb.turn_teleop();
 
         twb.loop();  // MAIN CONTROL SYSTEM
 

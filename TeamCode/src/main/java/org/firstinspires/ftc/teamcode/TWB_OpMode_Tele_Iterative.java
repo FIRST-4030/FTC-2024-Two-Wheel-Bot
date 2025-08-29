@@ -3,7 +3,6 @@
 
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -25,7 +24,7 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
         twb = new TwoWheelBalanceBot(hardwareMap,this); // Create twb object
 
         twb.TUNE = true;
-        twb.LOG = true;
+        twb.LOG = false;
     }
 
     /*
@@ -57,17 +56,17 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
     @Override
     public void loop() {
 
-        // get teleoperated inputs first
+        // get teleoperated inputs
 
         twb.forward_teleop();
+
+        twb.turn_teleop();
 
         twb.arm_teleop();
 
         twb.claw_teleop();
 
-        twb.turn_teleop();
-
-        twb.loop();  // MAIN CONTROL SYSTEM
+        twb.loop();  // call the MAIN CONTROL SYSTEM
 
         telemetry.update();
     }
