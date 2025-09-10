@@ -17,7 +17,6 @@ public class TWB_OpMode_Auto1 extends OpMode {
     private TwoWheelBalanceBot twb;
     final private TWBMoves myTWBmoves = new TWBMoves(); // used for auto
     final private ElapsedTime moveTimer = new ElapsedTime();
-
     double currentPos;
 
     enum State {

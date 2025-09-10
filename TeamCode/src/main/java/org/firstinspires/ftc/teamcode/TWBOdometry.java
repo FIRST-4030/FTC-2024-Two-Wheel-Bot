@@ -53,10 +53,12 @@ public class TWBOdometry {
     }
 
     /**
-     * Updates the position and orientation of the robot based on new encoder values.
+     * Updates the position and orientation (yaw) of the robot based on new encoder values.
      *
      * @param leftDistance  The new distance traveled by the left wheel (in mm).
      * @param rightDistance The new distance traveled by the right wheel (in mm).
+     * @param pitch   The pitch of the body connected to the wheels (in degrees), zero is up.
+     * @param timeChange   The loop delta time (in seconds).
      */
     public void update(double leftDistance, double rightDistance, double pitch, double timeChange) {
         
@@ -68,12 +70,14 @@ public class TWBOdometry {
         double deltaTheta;
 
         // Calculate the delta pitch (degrees) of the chassis, since the last update
-        // This needs to be subtracted from the travel
-        // Trying to subtract out the balancing motion from the robots position
+        // This is subtracted from the travel because it moves the encoders
         double deltaPitch = pitch - lastPitch;
         lastPitch = pitch;
         double pitchEqDist = (deltaPitch/360.0)*wheelCircumference; // Pitch Equivalent Distance
-        
+
+        // Absolute pitch does not move the encoders, but the wheels travel.
+        double pitchAbsDist = (pitch/360.0)*wheelCircumference; // Pitch Equivalent Distance
+
         // get the prior running average distance
         lastLeftDistance = leftDistAvg.getAverage();
         lastRightDistance = rightDistAvg.getAverage();
@@ -87,8 +91,8 @@ public class TWBOdometry {
         newRightDistance = rightDistAvg.getAverage();
         
         // take the difference and add the pitch adjustment
-        deltaLeft  = newLeftDistance -lastLeftDistance - pitchEqDist;
-        deltaRight = newRightDistance-lastRightDistance - pitchEqDist;
+        deltaLeft  = (newLeftDistance -lastLeftDistance) - pitchEqDist + pitchAbsDist;
+        deltaRight = (newRightDistance-lastRightDistance) - pitchEqDist + pitchAbsDist;
 
         // Calculate the change in orientation
         deltaTheta = (deltaLeft- deltaRight) / wheelBase;

@@ -94,7 +94,6 @@ public class TwoWheelBalanceBot {
     ElapsedTime clawTimer = new ElapsedTime();
     Servo clawServo;
 
-
     // Constructor.  Call once in init()
     public TwoWheelBalanceBot(HardwareMap hardwareMap, OpMode opMode) {
 

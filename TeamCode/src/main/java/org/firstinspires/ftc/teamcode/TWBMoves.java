@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode;
  TWB = Two Wheel Bot
  Moves = methods to drive specified distance in specified time
  */
-
 public class TWBMoves {
     // members
     public boolean reverseDir = false; // for running backwards
@@ -141,29 +140,5 @@ public double[] calculateNextState(double currentPosition, double currentVelocit
 
     return new double[]{newPosition, newVelocity};
 }
-}
-
-    private void setPitchScaler() {
-        double max_v;
-        double max_a;
-        max_v = 2.0 * posShift / rT;
-        max_a = 4.0 * max_v / rT;
-        this.pitchScaler = ( max_a / 8.0) / 10.0; // convert from cm to mm
-    }
-
-    public double getPitchTarget() {
-        double pitchTarget = 0;
-
-        if (reverseDir) sign = -1;
-        else sign = 1;
-
-        // moveTimer must be running when this is called!
-        if (runToRunning) {
-            pitchTarget = sign*pitchScaler*pitchVector.getY(moveTimer.seconds()/rT);
-            if (pitchTarget > 20.0) pitchTarget = 20.0;
-            else if (pitchTarget < -20.0) pitchTarget = -20.0;
-        }
-        return pitchTarget;
-    }
  */
 }
