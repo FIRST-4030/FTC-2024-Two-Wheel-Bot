@@ -33,7 +33,7 @@ public class TwoWheelBalanceBot {
     double KpitchRate = -0.025; // volts/degrees/sec
 
     double Kpos = 0.048;  // volts/mm For high balancing (unstable) this term is positive
-    double Kvelo = 0.015;  // volts/mm/sec For high balancing (unstable) this term is positive
+    double Kvelo = 0.018;  // volts/mm/sec For high balancing (unstable) this term is positive
 
     static final double TICKSPERMM = 1.7545; // REV SPUR 40:1, 8in wheels
     static final double WHEELBASE = 300; // robot Wheel base (mm)
@@ -99,12 +99,9 @@ public class TwoWheelBalanceBot {
 
         this.theOpmode = opMode; // set the opmode that is calling this class
         // Initialize the datalog
-        if (LOG) datalog = new Datalog("TwoWheelBotAug29");
+        if (LOG) datalog = new Datalog("TwoWheelBotSep10");
 
-        deltaTimeRA.addNumber(0.02); // add to running average to smooth start
-        deltaTimeRA.addNumber(0.02);
-        deltaTimeRA.addNumber(0.02);
-        deltaTimeRA.addNumber(0.02);
+        deltaTimeRA.addNumber(0.04); // add to running average to smooth start
 
         // Define and Initialize Motors
         leftDrive = hardwareMap.get(DcMotor.class, "left_drive");

@@ -33,8 +33,8 @@ public class TWBOdometry {
         this.wheelCircumference = wheelDia*Math.PI; // convert diameter to circumference
         this.lastPitch = initialPitch; // robots initial pitch, probably not zero
         this.veloAvg = new RunningAverage(7);
-        this.leftDistAvg = new RunningAverage(4);
-        this.rightDistAvg = new RunningAverage(4);
+        this.leftDistAvg = new RunningAverage(3);
+        this.rightDistAvg = new RunningAverage(3);
 
         // initialize the running averages with some zeros to smooth out the startup
         veloAvg.addNumber(0);
@@ -75,9 +75,6 @@ public class TWBOdometry {
         lastPitch = pitch;
         double pitchEqDist = (deltaPitch/360.0)*wheelCircumference; // Pitch Equivalent Distance
 
-        // Absolute pitch does not move the encoders, but the wheels travel.
-        double pitchAbsDist = (pitch/360.0)*wheelCircumference; // Pitch Equivalent Distance
-
         // get the prior running average distance
         lastLeftDistance = leftDistAvg.getAverage();
         lastRightDistance = rightDistAvg.getAverage();
@@ -91,8 +88,8 @@ public class TWBOdometry {
         newRightDistance = rightDistAvg.getAverage();
         
         // take the difference and add the pitch adjustment
-        deltaLeft  = (newLeftDistance -lastLeftDistance) - pitchEqDist + pitchAbsDist;
-        deltaRight = (newRightDistance-lastRightDistance) - pitchEqDist + pitchAbsDist;
+        deltaLeft  = (newLeftDistance -lastLeftDistance) - pitchEqDist;
+        deltaRight = (newRightDistance-lastRightDistance) - pitchEqDist;
 
         // Calculate the change in orientation
         deltaTheta = (deltaLeft- deltaRight) / wheelBase;
