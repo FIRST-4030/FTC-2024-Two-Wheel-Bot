@@ -1,12 +1,12 @@
-/*
-Java class that keeps track of a two-wheeled balancing robot's position using encoder values from the wheels.
-The class converts the encoder values into the robot's X and Y position and rotation (theta or yaw).
-Added method of subtracting the robot pitch from position.
-Robot pitch may move the encoders but not the change robot position.
-Running Average is used to smooth position data.
-*/
 package org.firstinspires.ftc.teamcode;
 
+/**
+ * Two Wheel Robot Odometry class.
+ * Keeps track of a two-wheeled balancing robot's position using wheel encoders.
+ * Running Average is used to smooth position and velocity data.
+ * Robot pitch may move the encoders but not the change robot position, and
+ * pitch may move the robot without changing the encoders.
+ */
 public class TWBOdometry {
     // Robot parameters
     private final double wheelBase; // distance between the wheels
@@ -27,7 +27,9 @@ public class TWBOdometry {
     final private RunningAverage leftDistAvg; // Running average of left encoder
     final private RunningAverage rightDistAvg; // Running average of left encoder
 
-    // Constructor,  provide wheel base and wheel dia in mm, initialPitch in degrees
+    /**
+     * Constructor,  provide wheel base and wheel dia in mm, initialPitch in degrees
+      */
     public TWBOdometry(double wheelBase, double wheelDia, double initialPitch) {
         this.wheelBase = wheelBase;
         this.wheelCircumference = wheelDia*Math.PI; // convert diameter to circumference
@@ -55,8 +57,8 @@ public class TWBOdometry {
     /**
      * Updates the position and orientation (yaw) of the robot based on new encoder values.
      *
-     * @param leftDistance  The new distance traveled by the left wheel (in mm).
-     * @param rightDistance The new distance traveled by the right wheel (in mm).
+     * @param leftDistance  distance traveled by the left wheel (mm).
+     * @param rightDistance distance traveled by the right wheel (mm).
      * @param pitch   The pitch of the body connected to the wheels (in degrees), zero is up.
      * @param timeChange   The loop delta time (in seconds).
      */
@@ -151,11 +153,20 @@ public class TWBOdometry {
         return -noNormalTheta;
     }
 
+    /**
+     * return instant linear velocity
+     * @return linearVelocity
+     */
     public double getLinearVelocity() {
-        return linearVelocity; // return instant linear velocity
+        return linearVelocity;
     }
+
+    /**
+     * return running average linear velocity
+     * @return veloAvg
+     */
     public double getAvgLinearVelocity() {
-        return veloAvg.getAverage(); // return average linear velocity
+        return veloAvg.getAverage();
     }
 }
 

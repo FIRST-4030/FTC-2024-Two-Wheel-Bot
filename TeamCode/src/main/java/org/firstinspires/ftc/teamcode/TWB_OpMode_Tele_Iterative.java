@@ -6,8 +6,8 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-/*
- * This Iterative Tele OpMode is for a Two Wheel Balancing Robot with Arm
+/**
+ * Iterative Tele OpMode is for a Two Wheel Balancing Robot with Arm.
  */
 @TeleOp(name="TWB Teleoperated")
 //@Disabled
@@ -16,8 +16,8 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
     // Declare OpMode members.
     private TwoWheelBalanceBot twb;
 
-    /*
-     * Code to run ONCE when the driver hits INIT
+    /**
+     * TWB Teleop Code to run ONCE when the driver hits INIT
      */
     @Override
     public void init() {
@@ -27,8 +27,8 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
         twb.LOG = false;
     }
 
-    /*
-     * Code to run REPEATEDLY after the driver hits INIT, but before they hit START
+    /**
+     * TWB Teleop Code to run REPEATEDLY after the driver hits INIT, but before they hit START
      */
     @Override
     public void init_loop() {
@@ -41,8 +41,8 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
         telemetry.update();
     }
 
-    /*
-     * Code to run ONCE when the driver hits START
+    /**
+     * TWB Teleop Code to run ONCE when the driver hits START
      */
     @Override
     public void start() {
@@ -50,15 +50,15 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
         twb.start(); // gets the latest state of the robot before running
     }
 
-    /*
-     * Code to run REPEATEDLY after the driver hits START but before they hit STOP
+    /**
+     * TWB Teleop Code to run REPEATEDLY after the driver hits START but before they hit STOP
      */
     @Override
     public void loop() {
 
         // get teleoperated inputs
 
-        twb.forward_teleop();
+        twb.velo_teleop(300); // set robot velocity and position targets
 
         twb.turn_teleop();
 

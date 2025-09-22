@@ -3,11 +3,13 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
-// Special Two Wheel Balancing Robot Arm Object, driven by a servo.
-// Computes Arm Servo value and Pitch setpoint, for desired arm angle.
-// This keeps the Center of Gravity (CG) of Arm + Robot Body over the Robot Wheel axis.
-// The Computation has been done externally (OpenSCAD Mass Properties Simulator program)
-// and saved as lookup Piecewise curve.
+/**
+ * Two Wheel Balancing Robot Arm Object, driven by a servo.
+ * Computes Arm Servo value and Pitch setpoint, for desired arm angle.
+ * This keeps the Center of Gravity (CG) of Arm + Robot Body over the Robot Wheel axis.
+ * The computation has been done externally (using OpenSCAD Mass Properties Simulator program)
+ * and saved as a lookup Piecewise curve.
+  */
 public class TWBArmServo {
     private double currentPos; // current position (degrees)
     private double targetPos; // target position (degrees)
@@ -26,7 +28,9 @@ public class TWBArmServo {
     // PieceWise linear curve member for pitch angle vs arm angle
     final private PiecewiseFunction pitchAngVec = new PiecewiseFunction();
 
-    // constructor
+    /**
+     * TWBArmServo constructor. Initializes the pitch vs arm-angle curve.
+      */
     public TWBArmServo(HardwareMap hardwareMap, String servoName, double initAngle,
                        double maxPos, double minPos, double maxV){
         this.currentPos = initAngle;
@@ -58,10 +62,19 @@ public class TWBArmServo {
         pitchAngVec.addElement(160,-4.26974); // new global arm angle is 155.73
         }
 
+    /**
+     * TWBArmServo method.  Updates the target arm position.
+     * @param armAngle
+     */
     public void setArmAngle(double armAngle) {targetPos = armAngle;}
 
+    /**
+     * TWBArmServo method.  Call this continuously to move the arm.
+     * @param deltaTime
+     * @return target pitch angle for robot
+     */
     public double updateArm(double deltaTime){
-        // TAKE DESIRED ARM ANGLE AND SET SERVO VALUE AND RETURN PITCH SETPOINT
+        // Update the arm smoothly
         updatePosition(deltaTime);
 
         // convert the arm angle into a servo value from 0 to 1
@@ -73,7 +86,11 @@ public class TWBArmServo {
         return this.getPitchAngle(currentPos);
     }
 
-    public void updatePosition(double deltaTime) {
+    /**
+     * TWBArmServo method.  Call this continuously to provide smooth arm position update.
+     * @param deltaTime
+     */
+    private void updatePosition(double deltaTime) {
         double deltaPos = targetPos-currentPos; // position change being asked for
         double deltaPosMax = maxVelocity * deltaTime; // convert rate limit to delta position based on loop time
         // apply velocity (rate) limit
@@ -86,16 +103,22 @@ public class TWBArmServo {
         else if (currentPos < posMin) targetPos = posMin;
     }
 
-    // return the required body pitch angle given the desired arm angle
-    public double getPitchAngle(double armDesiredAngle){
+    /**
+     * return the required body pitch angle given the desired arm angle
+      */
+    private double getPitchAngle(double armDesiredAngle){
         return pitchAngVec.getY(armDesiredAngle);
     }
-    // return the servo position (0 to 1).  This returns the last command sent to the servo
-    public double getPosition() {
-        return armServo.getPosition();
-    }
 
+    /**
+     * TWBArmServo method.  Returns the current position of the arm.
+     * @return currentPos
+     */
     public double getAngle() { return currentPos;}
 
+    /**
+     * TWBArmServo method. Returns the target position of the arm.
+     * @return targetPos
+     */
     public double getTargetAngle() { return targetPos; }
 }

@@ -7,8 +7,10 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-/*
- * This Iterative Autonomous OpMode is for a Two Wheel Balancing Robot with Arm
+/**
+ * This Iterative Autonomous OpMode is for a Two Wheel Balancing Robot with Arm.
+ * Moves forward, drops object, moves back.
+ * Used mostly for developing motion profiles.
  */
 @Autonomous(name="TWB Autonomous 1")
 //@Disabled
@@ -63,7 +65,6 @@ public class TWB_OpMode_Auto1 extends OpMode {
         twb.start(); // gets the latest state of the robot before running
         twb.ClawIsClosed = true; // close the claw
         twb.theArm.setArmAngle(-90);  // move the arm
-
     }
 
     /*
@@ -85,8 +86,9 @@ public class TWB_OpMode_Auto1 extends OpMode {
             case MOVE1:
                 if (getRuntime() <= 8.0 ) {
                     newTargets = myTWBmoves.lineMove(DIST,3.0, moveTimer.seconds(),currentPos);
-                    twb.posTarget = newTargets[0];
+                    twb.posTarget = newTargets[0]; // ADD METHOD THAT INCLUDES VELOCITY TARGET BASED ON POSTARGET
                     twb.autoPitchTarget = newTargets[1];
+                    twb.veloTarget = newTargets[2];
                 } else {
                     state = State.MOVE2;
                     moveTimer.reset();
@@ -100,7 +102,8 @@ public class TWB_OpMode_Auto1 extends OpMode {
                     newTargets = myTWBmoves.lineMove(DIST,3.0, moveTimer.seconds(),currentPos);
                     twb.posTarget = newTargets[0];
                     twb.autoPitchTarget = newTargets[1];
-                } else {
+                    twb.veloTarget = newTargets[2];
+                 } else {
                     state = State.DONE;
                      moveTimer.reset();
                  }

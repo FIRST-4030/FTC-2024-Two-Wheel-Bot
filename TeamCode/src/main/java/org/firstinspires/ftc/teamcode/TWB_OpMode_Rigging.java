@@ -58,9 +58,9 @@ public class TWB_OpMode_Rigging extends OpMode
 
         // get teleoperated inputs
 
-        twb.forward_teleop();
+        twb.velo_teleop(500); // set robot velocity and position targets
 
-        twb.turn_teleop();
+        twb.turn_teleop(); // set robot yaw angle target
 
         twb.arm_teleop();
 
