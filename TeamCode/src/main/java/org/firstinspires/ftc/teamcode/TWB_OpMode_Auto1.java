@@ -12,7 +12,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Moves forward, drops object, moves back.
  * Used mostly for developing motion profiles.
  */
-@Autonomous(name="TWB Autonomous 1")
+@Autonomous(name="TWB Auto Move FWD and Back")
 //@Disabled
 public class TWB_OpMode_Auto1 extends OpMode {
     // Declare OpMode members.
@@ -37,6 +37,9 @@ public class TWB_OpMode_Auto1 extends OpMode {
 
         twb.TUNE = true;
         twb.LOG = true;
+
+        twb.init();
+
     }
 
     /*

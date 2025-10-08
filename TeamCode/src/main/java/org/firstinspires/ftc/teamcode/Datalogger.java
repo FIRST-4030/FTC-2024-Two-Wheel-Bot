@@ -20,7 +20,6 @@ Credit to @Windwoes (https://github.com/Windwoes).
 
 */
 
-
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -36,6 +35,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
 
+/**
+ * Datalogger class. Most users will not need to edit this class; its methods are called
+ * from a user's OpMode.  For instructions, see the tutorial at the FTC Wiki:
+ * https://github.com/FIRST-Tech-Challenge/FtcRobotController/wiki/Datalogging
+ */
 public class Datalogger
 {
     private LoggableField[] fields;
@@ -293,7 +297,7 @@ public class Datalogger
 
             try
             {
-                BufferedCsvWriter bufferedCsvWriter = new BufferedCsvWriter(String.format("/sdcard/FIRST/java/src/Datalogs/%s.txt", filename));
+                BufferedCsvWriter bufferedCsvWriter = new BufferedCsvWriter(String.format("/sdcard/FIRST/Datalogs/%s.csv", filename));
                 return new Datalogger(bufferedCsvWriter, fields);
             }
             catch (IOException e)

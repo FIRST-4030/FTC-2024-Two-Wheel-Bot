@@ -13,9 +13,17 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
 
 /**
  * Two Wheel Balancing Robot Class, with Arm.
@@ -25,17 +33,21 @@ public class TwoWheelBalanceBot {
     public boolean LOG = true;  // should the log be recorded?
 
     public boolean TUNE = true; // switch for buttons
+    public boolean TELEMETRY = true; // switch for telementry
+
+    public boolean APRILTAG = false; // switch for AprilTags
 
     Datalog datalog; // create the data logger object
 
     // These are the state terms for a two wheel balancing robot
-    double Kpitch = -0.98; // volts/degree
-    double KpitchRate = -0.04; // volts/degrees/sec
-    // Have had difficulty setting this term.  Can't tell.
+    public double Kpitch = -0.70; // volts/degree at arm = -90
+    public double KpitchRate = -0.04; // volts/degrees/sec
+    // Have had difficulty tuning this term.  Can't tell what changes it makes.
 
-    double Kpos = 0.048;  // volts/mm For high balancing (unstable) this term is positive
-    double Kvelo = 0.017;  // volts/mm/sec For high balancing (unstable) this term is positive
-    // Larger Kvelo decreases the rocking motion, up to a point!  Seems very sensitive
+    public double Kpos = 0.029;  // volts/mm For high balancing (unstable) this term is positive
+    public double Kvelo = 0.017;  // volts/mm/sec For high balancing (unstable) this term is positive
+    // Larger Kvelo decreases the rocking motion, up to a point, then chatter!
+    // Both Kpos and Kvelo are negative when the center of mass is below the wheel axles.
 
     static final double TICKSPERMM = 1.7545; // REV SPUR 40:1, 8in wheels
     static final double WHEELBASE = 300; // robot Wheel base (mm)
@@ -91,6 +103,25 @@ public class TwoWheelBalanceBot {
     ElapsedTime clawTimer = new ElapsedTime();
     Servo clawServo;
 
+    // used in Design of Experiments
+    public double PosAmplitude = 0;
+    public double PitchAmplitude = 0;
+
+    /**
+     * The variable to store our instance of the AprilTag processor.
+     */
+    public AprilTagProcessor aprilTag;
+
+    /**
+     * The variable to store our instance of the vision portal.
+     */
+    public VisionPortal visionPortal;
+    private Position cameraPosition = new Position(DistanceUnit.INCH,
+            0, 0, 0, 0);
+    private YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES,
+            0, -90, 0, 0);
+
+    private HardwareMap hwmp;
     /**
      * TWB Constructor.  Call once in initialization.
       */
@@ -98,7 +129,8 @@ public class TwoWheelBalanceBot {
 
         this.theOpmode = opMode; // set the opmode that is calling this class
         // Initialize the datalog
-        if (LOG) datalog = new Datalog("TwoWheelBotSep21");
+
+        this.hwmp = hardwareMap;
 
         deltaTimeRA.addNumber(0.04); // add to running average to smooth start
 
@@ -133,17 +165,63 @@ public class TwoWheelBalanceBot {
         clawServo = hardwareMap.get(Servo.class, "clawServo");
 
         yawPID.setSetpoint(0.0);    // initial yaw (yawTarget) is zero.
+
     }
 
+    /**
+     * TWB init. Called once at initialization
+     */
+    public void init() {
+        if (LOG) datalog = new Datalog("TwoWheelBotOct07");
+
+        if (TUNE) tuneButtons(); // used to tune the K terms
+
+        if (APRILTAG) {
+
+            // Create the AprilTag processor.
+            aprilTag = new AprilTagProcessor.Builder()
+
+                    // The following default settings are available to un-comment and edit as needed.
+                    //.setDrawAxes(false)
+                    //.setDrawCubeProjection(false)
+                    //.setDrawTagOutline(true)
+                    .setOutputUnits(DistanceUnit.CM, AngleUnit.RADIANS)
+                    .setCameraPose(cameraPosition, cameraOrientation)
+
+                    .build();
+
+            // Adjust Image Decimation to trade-off detection-range for detection-rate.
+            // eg: Some typical detection data using a Logitech C920 WebCam
+            // Decimation = 1 ..  Detect 2" Tag from 10 feet away at 10 Frames per second
+            // Decimation = 2 ..  Detect 2" Tag from 6  feet away at 22 Frames per second
+            // Decimation = 3 ..  Detect 2" Tag from 4  feet away at 30 Frames Per Second (default)
+            // Decimation = 3 ..  Detect 5" Tag from 10 feet away at 30 Frames Per Second (default)
+            // Note: Decimation can be changed on-the-fly to adapt during a match.
+            aprilTag.setDecimation(6);
+
+            // Create the vision portal by using a builder.
+            VisionPortal.Builder builder = new VisionPortal.Builder();
+
+            builder.setCamera(hwmp.get(WebcamName.class, "Webcam 1"));
+
+            builder.enableLiveView(true);
+            //builder.setLiveViewContainerId(1);
+
+            // Set and enable the processor.
+            builder.addProcessor(aprilTag);
+
+            // Build the Vision Portal, using the above settings.
+            visionPortal = builder.build();
+        }
+
+    }
     /**
      * TWB init loop.  Called repeatedly in initialization.
       */
     public void init_loop() {
-
-        if (TUNE) tuneButtons(); // used to tune the K terms
-        theOpmode.telemetry.addData("TUNE", TUNE);
-
         theOpmode.telemetry.addData("LOG", LOG);
+        theOpmode.telemetry.addData("TUNE", TUNE);
+        theOpmode.telemetry.addData("APRIL TAG", APRILTAG);
     }
 
     /**
@@ -223,6 +301,10 @@ public class TwoWheelBalanceBot {
         double rightTicks = rightDrive.getCurrentPosition();
         AngularVelocity angularVelocity;  // part of FIRST navigation classes
 
+        int at_id = 0;
+        double at_range = 0;
+        double at_bearing = 0;
+
         i++;  // index the loop counter
 
         // compute a loop time.  Using running average to smooth values
@@ -235,6 +317,7 @@ public class TwoWheelBalanceBot {
 
         // get values from the IMU
         orientation = imu.getRobotYawPitchRollAngles();
+        //yaw = orientation.getYaw(AngleUnit.DEGREES);
         angularVelocity = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
         pitch = orientation.getPitch(AngleUnit.DEGREES);
         double pitchRATE = angularVelocity.xRotationRate;
@@ -263,8 +346,8 @@ public class TwoWheelBalanceBot {
         pitchError = pitch - sumPitchTarget; // - accelPitchAdjust;   // ADD ACCEL PITCH ADJUSTMENT?
 
         // Kpitch needs to decrease when the arm is down
-        double newKpitch = Kpitch * Math.cos((Math.PI/180)*theArm.getAngle() / 2.6);
-        double pitchVolts = newKpitch * pitchError + KpitchRate * pitchRATE;
+        //double newKpitch = Kpitch * Math.cos((Math.PI/180)*theArm.getAngle() / 2.6);
+        double pitchVolts = Kpitch * pitchError + KpitchRate * pitchRATE;
         double totalPowerVolts = pitchVolts + positionVolts;
 
         // The following controls the turn (yaw) of the robot
@@ -282,8 +365,8 @@ public class TwoWheelBalanceBot {
         yawPower = yawPID.compute(yaw);
 
         // limit the total volts
-        if (totalPowerVolts > 12) totalPowerVolts = 12;
-        else if (totalPowerVolts < -12) totalPowerVolts = -12;
+        if (totalPowerVolts > 14) totalPowerVolts = 14;
+        else if (totalPowerVolts < -14) totalPowerVolts = -14;
 
          // Set the motor power for both wheels
         leftDrive.setPower(totalPowerVolts / currentVoltage - yawPower + zeroVoltsAdjust);
@@ -291,6 +374,18 @@ public class TwoWheelBalanceBot {
 
         if (ClawIsClosed) clawServo.setPosition(0.98); // closed value (changed .90 to .98)
         else clawServo.setPosition(0.5); // open value (WAS 0.35)
+
+        if(APRILTAG) {
+            List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+            // Step through the list of detections and display info for each one.
+            for (AprilTagDetection detection : currentDetections) {
+                if (detection.metadata != null) {
+                    at_id = detection.id;
+                    at_range = detection.ftcPose.range;
+                    at_bearing = detection.ftcPose.bearing;
+                }
+            }
+        }
 
         if (LOG) {
             // Data log 
@@ -322,18 +417,29 @@ public class TwoWheelBalanceBot {
             datalog.yawPwr.set(yawPower * currentVoltage);
             datalog.battery.set(battery.getVoltage());
             datalog.armAngle.set(theArm.getAngle());
+            datalog.Kpos.set(Kpos);
+            datalog.Kvelo.set(Kvelo);
+            datalog.Kpitch.set(Kpitch);
+            datalog.KpitchRate.set(KpitchRate);
+            datalog.PosAmplitude.set(PosAmplitude);
+            datalog.PitchAmplitude.set(PitchAmplitude);
+            datalog.ATid.set(at_id);
+            datalog.ATrange.set(at_range);
+            datalog.ATbearing.set(at_bearing);
 
             // The logged timestamp is taken when writeLine() is called.
             datalog.writeLine();
         }
-        theOpmode.telemetry.addData("s position target (mm)", "%.1f ", posTarget);
-        theOpmode.telemetry.addData("s position Odometry (mm)", "%.1f ", sOdom);
-        theOpmode.telemetry.addData("Velocity (mm/sec)", "%.1f ", linearVelocity);
-        theOpmode.telemetry.addData("Arm Target Angle", theArm.getTargetAngle());
-        //theOpmode.telemetry.addData("Arm Current Angle", theArm.getAngle());
-        //theOpmode.telemetry.addData("Arm Servo getPosition ", theArm.getPosition());
-        theOpmode.telemetry.addData("Pitch IMU (degrees)", "%.1f ", pitch);
-        theOpmode.telemetry.addData("Pitch Target (degrees)", "%.1f ", sumPitchTarget);
+        if (TELEMETRY) {
+            theOpmode.telemetry.addData("s position target (mm)", "%.1f ", posTarget);
+            theOpmode.telemetry.addData("s position Odometry (mm)", "%.1f ", sOdom);
+            theOpmode.telemetry.addData("Velocity (mm/sec)", "%.1f ", linearVelocity);
+            theOpmode.telemetry.addData("Arm Target Angle", theArm.getTargetAngle());
+            //theOpmode.telemetry.addData("Arm Current Angle", theArm.getAngle());
+            //theOpmode.telemetry.addData("Arm Servo getPosition ", theArm.getPosition());
+            theOpmode.telemetry.addData("Pitch IMU (degrees)", "%.1f ", pitch);
+            theOpmode.telemetry.addData("Pitch Target (degrees)", "%.1f ", sumPitchTarget);
+        }
 
         // kill the robot if it pitches over or runs fast
         if (pitch > 80  || pitch < -80 || linearVelocity > 1500 || linearVelocity < -1500) {
@@ -359,7 +465,6 @@ public class TwoWheelBalanceBot {
         public Datalogger.GenericField pos = new Datalogger.GenericField("PosCurrent");
         public Datalogger.GenericField posTarget = new Datalogger.GenericField("PosTarget");
         public Datalogger.GenericField veloTarget = new Datalogger.GenericField("VeloTarget");
-        //public Datalogger.GenericField accelTarget = new Datalogger.GenericField("AccelTarget");
         public Datalogger.GenericField yaw = new Datalogger.GenericField("Yaw");
         public Datalogger.GenericField yawTarget = new Datalogger.GenericField("yawTarget");
         public Datalogger.GenericField yawTheta = new Datalogger.GenericField("Theta");
@@ -376,6 +481,16 @@ public class TwoWheelBalanceBot {
         public Datalogger.GenericField yawPwr = new Datalogger.GenericField("yawPower");
         public Datalogger.GenericField battery = new Datalogger.GenericField("Battery");
         public Datalogger.GenericField armAngle = new Datalogger.GenericField("armAngle");
+        public Datalogger.GenericField Kpos = new Datalogger.GenericField("Kpos");
+        public Datalogger.GenericField Kvelo = new Datalogger.GenericField("Kvelo");
+        public Datalogger.GenericField Kpitch = new Datalogger.GenericField("Kpitch");
+        public Datalogger.GenericField KpitchRate = new Datalogger.GenericField("KpitchRate");
+
+        public Datalogger.GenericField PosAmplitude = new Datalogger.GenericField("PosAmplitude");
+        public Datalogger.GenericField PitchAmplitude = new Datalogger.GenericField("PitchAmplitude");
+        public Datalogger.GenericField ATid = new Datalogger.GenericField("AprilTagID");
+        public Datalogger.GenericField ATrange = new Datalogger.GenericField("AprilTagRange");
+        public Datalogger.GenericField ATbearing = new Datalogger.GenericField("AprilTagBearing");
 
         public Datalog(String name) {
             // Build the underlying datalog object
@@ -416,7 +531,16 @@ public class TwoWheelBalanceBot {
                             totalVolts,
                             yawPwr,
                             battery,
-                            armAngle
+                            armAngle,
+                            Kpos,
+                            Kvelo,
+                            Kpitch,
+                            KpitchRate,
+                            PosAmplitude,
+                            PitchAmplitude,
+                            ATid,
+                            ATrange,
+                            ATbearing
                     )
                     .build();
         }
@@ -491,11 +615,12 @@ public class TwoWheelBalanceBot {
 
     /**
      * TWB method to provide user control of turning the robot.
+     * @param speed a value from 0.01 to 0.05 to adjust the speed of the turn
      */
-    public void turn_teleop() {
+    public void turn_teleop(double speed) {
         // Robot Turning:
         // The right joystick turns the robot by adjusting the yaw PID turn setpoint
-        yawTarget -= theOpmode.gamepad1.right_stick_x * 0.04;  // get turn from gamepad (radian)
+        yawTarget -= theOpmode.gamepad1.right_stick_x * speed;  // get turn from gamepad (radian)
     }
 
     /**

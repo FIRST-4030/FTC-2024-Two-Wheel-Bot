@@ -25,6 +25,9 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
 
         twb.TUNE = true;
         twb.LOG = false;
+
+        twb.init();
+
     }
 
     /**
@@ -60,7 +63,7 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
 
         twb.velo_teleop(300); // set robot velocity and position targets
 
-        twb.turn_teleop();
+        twb.turn_teleop(0.02);
 
         twb.arm_teleop();
 
