@@ -70,7 +70,7 @@ public class TWBArmServo {
 
     /**
      * TWBArmServo method.  Call this continuously to move the arm.
-     * @param deltaTime
+     * @param deltaTime This is the loop time and typically around 0.02 seconds
      * @return target pitch angle for robot
      */
     public double updateArm(double deltaTime){

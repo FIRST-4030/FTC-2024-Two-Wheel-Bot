@@ -3,8 +3,8 @@
 
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 /**
@@ -12,22 +12,22 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Initializes to balancing, then runs through a series of Kposition and Kpitch values.
  * The idea is that one can review the datalog and see when the robot is well balanced.
  */
-@Autonomous(name="TWB Auto Design of Experiments")
+@TeleOp(name="TWB Design of Experiments")
 //@Disabled
-public class TWB_OpMode_Auto_DOE extends OpMode {
+public class TWB_OpMode_DOE extends OpMode {
     // Declare OpMode members.
     private TwoWheelBalanceBot twb;
     final private ElapsedTime moveTimer = new ElapsedTime();
 
     // DOE constants.  Modify these for the experiment
-    private final double minKpos = 0.026;
-    private final double maxKpos = 0.034;
-    private final double incrementKpos = 0.001;  //
-    private final double minKpitch = -0.72;
-    private final double maxKpitch = -0.66;
-    private final double incrementKpitch = 0.01; //
-    private final double armAngle = -120.0; // degrees
-    private final double period = 3.0; // seconds
+    private final double minKpos = 0.005; // .025 for -90 to 90
+    private final double maxKpos = 0.015; // 0.35 for -90 to 90
+    private final double incrementKpos = (maxKpos-minKpos) / 5.0;  // calculated
+    private final double minKpitch = -0.60; // -.85 for -90 to 90
+    private final double maxKpitch = -0.45; // -0.70 for -90 to 90
+    private final double incrementKpitch = (maxKpitch-minKpitch) / 5.0; // calculated
+
+    private double armAngle = -90.0; // degrees
 
     // Design of experiment variables:
     private double KPOS; // DOE value
@@ -48,7 +48,9 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
     private double minPitchAmp = 60; // degrees
     private double minPitchAmpKpos = 0; // record of Kpos when Pitch Amp is minimum
     private double minPitchAmpKpitch = 0; // record of Kpitch when Pitch Amp is minimum
-    private double priorMinPitchAmp = 30; // used for datalogging
+    private double priorMinPitchAmp = 15; // used for datalogging
+
+    int count = 1; // for counting the DOE
 
     /**
      * Code to run ONCE when the driver hits INIT
@@ -57,9 +59,9 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
     public void init() {
         twb = new TwoWheelBalanceBot(hardwareMap,this); // Create twb object
 
-        twb.TUNE = false;
-        twb.LOG = false;
+        twb.LOG = true;
         twb.TELEMETRY = false;
+        twb.APRILTAG = false;
 
         KPOS = minKpos;
         KPIT = minKpitch;
@@ -69,10 +71,8 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
         twb.PitchAmplitude = priorMinPitchAmp; // for datalogging
 
         twb.ClawIsClosed = true; // close the claw
-        twb.theArm.setArmAngle(armAngle);  // move the arm
 
         twb.init();
-
     }
 
     /**
@@ -81,11 +81,16 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
     @Override
     public void init_loop() {
         telemetry.addData("AUTO", "INIT LOOP");
-        telemetry.addData("Arm Angle",armAngle);
+        telemetry.addData("Adjust arm angle for ","Design of Experiments");
 
-        //twb.auto_right_loop(); // gets the robot into a position to self right
+        if (gamepad1.xWasPressed()) armAngle += 10;
+        else if (gamepad1.bWasPressed()) armAngle -= 10;
+        twb.theArm.setArmAngle(armAngle);  // sets the arm angle, does not move it
 
-        twb.init_loop(); // provides user a chance to change the K terms
+        telemetry.addData("Move Arm  + X - B", armAngle);
+
+        double fixedPitchTarget = twb.theArm.updateArm(0.02); // moves the arm
+        telemetry.addData("Robot Pitch should be ", fixedPitchTarget);
 
         telemetry.update();
     }
@@ -96,7 +101,6 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
     @Override
     public void start() {
         resetRuntime();
-        //moveTimer.reset();
 
         twb.start(); // gets the latest state of the robot before running
         twb.ClawIsClosed = true; // close the claw
@@ -110,39 +114,50 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
     public void loop() {
         double posAmp;
         double pitchAmp;
+        double period = 5.0; // seconds
 
         if (getRuntime() < 4.0) { // initialization
             twb.loop();  // MAIN CONTROL SYSTEM
             telemetry.addData("Initialization","Settle");
             telemetry.update();
-
             moveTimer.reset();
         } else {
-            twb.LOG = true;
 
             // Outer Loop.
-            if(KPOS <= maxKpos) {
+            if(KPOS < maxKpos) {
                 twb.Kpos = KPOS;
                 twb.Kpitch = KPIT;
 
                 twb.loop();  // MAIN CONTROL SYSTEM
 
-                // check for minimum amplitude on the position wave
-                minPos = Math.min(twb.sOdom,minPos);
-                maxPos = Math.max(twb.sOdom,maxPos);
-                posAmp = maxPos-minPos;
-                if ((posAmp < minPosAmp) && (moveTimer.seconds() > period-0.1)) {
+                // give robot a jiggle at the beginning of the period to get a wave
+                if(moveTimer.seconds() < 0.1) {
+                    twb.autoPitchTarget = 2.0; // add 3 degrees initially to jiggle
+                } else {
+                    twb.autoPitchTarget = 0.0;
+                }
+
+                //if (moveTimer.seconds() > 0.2) {
+                    // create the minimum amplitude on the position wave
+                    minPos = Math.min(twb.sOdom,minPos);
+                    maxPos = Math.max(twb.sOdom,maxPos);
+                    posAmp = maxPos-minPos;
+
+                    // check for minimum amplitude on the pitch wave
+                    minPitch = Math.min(twb.pitch,minPitch);
+                    maxPitch = Math.max(twb.pitch,maxPitch);
+                    pitchAmp = maxPitch-minPitch;
+                //}
+                // at end of period, check for a new minimum and save it
+                if ((posAmp < minPosAmp) && (moveTimer.seconds() > period-0.05)) {
                     minPosAmp = posAmp;
                     minPosAmpKpos = KPOS;
                     minPosAmpKpitch = KPIT;
                 }
                 twb.PosAmplitude = priorMinPosAmp; // for datalogging
 
-                // check for minimum amplitude on the pitch wave
-                minPitch = Math.min(twb.pitch,minPitch);
-                maxPitch = Math.max(twb.pitch,maxPitch);
-                pitchAmp = maxPitch-minPitch;
-                if ((pitchAmp < minPitchAmp) && (moveTimer.seconds() > period-0.1)) {
+                // at end of period, check for a new minimum and save it
+                if ((pitchAmp < minPitchAmp) && (moveTimer.seconds() > period-0.05)) {
                     minPitchAmp = pitchAmp;
                     minPitchAmpKpos = KPOS;
                     minPitchAmpKpitch = KPIT;
@@ -159,9 +174,10 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
                     }
 
                     if (KPIT_REV)  KPIT=KPIT-incrementKpitch;
-                    else           KPIT=KPIT+incrementKpitch;
+                    else if (count != 1)  KPIT=KPIT+incrementKpitch;
 
                     moveTimer.reset();
+                    count += 1;
                     minPos = 1000;
                     maxPos = -1000;
                     minPitch = 45;
@@ -169,21 +185,7 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
                     priorMinPosAmp = posAmp;      // for datalogging
                     priorMinPitchAmp = pitchAmp;  // for datalogging
                 }
-
-                /*
-                if((KPIT <= -0.5) && (KPIT >= -1.0)) {
-                    if (KPIT_REV)
-                        KPIT=KPIT-0.0025;
-                    else
-                        KPIT=KPIT+0.0025;
-                } else {
-                    KPIT_REV=!KPIT_REV;
-                    KPOS = KPOS + 0.001;
-                    if (KPIT_REV)
-                        KPIT=KPIT-0.0025;
-                    else
-                        KPIT=KPIT+0.0025;
-                } */
+                telemetry.addData("COUNT",count);
                 telemetry.addData("Kposition",KPOS);
                 telemetry.addData("Kpitch",KPIT);
                 telemetry.addData("Pos Wave Min Kpos", minPosAmpKpos);
@@ -193,7 +195,17 @@ public class TWB_OpMode_Auto_DOE extends OpMode {
                 telemetry.update();
 
             } else {
-                requestOpModeStop(); // Stop the opmode
+                twb.loop();  // MAIN CONTROL SYSTEM
+
+                telemetry.addData("FINAL COUNT",count);
+                telemetry.addData("FINAL Position Wave Min Kpos", minPosAmpKpos);
+                telemetry.addData("FINAL Pitch Wave min    Kpos", minPitchAmpKpos);
+                telemetry.addData("FINAL Pos Wave Min   Kpitch", minPosAmpKpitch);
+                telemetry.addData("FINAL Pitch Wave min Kpitch", minPitchAmpKpitch);
+
+                telemetry.update();
+
+                if (moveTimer.seconds() > 8.0) requestOpModeStop(); // Stop the opmode
             }
         }
 

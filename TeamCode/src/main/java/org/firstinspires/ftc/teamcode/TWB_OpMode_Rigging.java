@@ -23,7 +23,6 @@ public class TWB_OpMode_Rigging extends OpMode
     public void init() {
         twb = new TwoWheelBalanceBot(hardwareMap,this); // Create twb object
 
-        twb.TUNE = true;
         twb.LOG = true;
         twb.APRILTAG = true;
 
@@ -41,6 +40,8 @@ public class TWB_OpMode_Rigging extends OpMode
         twb.init_loop(); // provides user a chance to change the K terms
 
         twb.servo_rig_loop();
+
+        twb.tuneButtons(); // used to tune the K terms
 
         telemetry.update();
     }
@@ -69,6 +70,10 @@ public class TWB_OpMode_Rigging extends OpMode
         twb.arm_teleop();
 
         twb.claw_teleop();
+
+        twb.tuneButtons(); // used to tune the K terms
+
+        twb.adjustThingButtons();
 
         twb.loop();  // MAIN CONTROL SYSTEM
 

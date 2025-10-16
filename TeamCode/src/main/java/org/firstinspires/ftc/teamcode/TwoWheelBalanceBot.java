@@ -32,7 +32,6 @@ public class TwoWheelBalanceBot {
     final private OpMode theOpmode; // Set during construction.  Enables using telemetry and gamepad
     public boolean LOG = true;  // should the log be recorded?
 
-    public boolean TUNE = true; // switch for buttons
     public boolean TELEMETRY = true; // switch for telementry
 
     public boolean APRILTAG = false; // switch for AprilTags
@@ -40,11 +39,11 @@ public class TwoWheelBalanceBot {
     Datalog datalog; // create the data logger object
 
     // These are the state terms for a two wheel balancing robot
-    public double Kpitch = -0.70; // volts/degree at arm = -90
+    public double Kpitch = -0.6; // volts/degree at arm = -90
     public double KpitchRate = -0.04; // volts/degrees/sec
     // Have had difficulty tuning this term.  Can't tell what changes it makes.
 
-    public double Kpos = 0.029;  // volts/mm For high balancing (unstable) this term is positive
+    public double Kpos = 0.006;  // volts/mm For high balancing (unstable) this term is positive
     public double Kvelo = 0.017;  // volts/mm/sec For high balancing (unstable) this term is positive
     // Larger Kvelo decreases the rocking motion, up to a point, then chatter!
     // Both Kpos and Kvelo are negative when the center of mass is below the wheel axles.
@@ -59,6 +58,7 @@ public class TwoWheelBalanceBot {
     public double posTarget = 0.0;  // from the user joystick in teleop or from auto routines
     public double veloTarget = 0.0;
     public double autoPitchTarget = 0; // used to set pitch from an auto routine
+    double pitchTarget = 0;
 
     double pitch = 0; // degrees, value got from imu
     double zeroVoltsAdjust = 0.0; //
@@ -172,9 +172,7 @@ public class TwoWheelBalanceBot {
      * TWB init. Called once at initialization
      */
     public void init() {
-        if (LOG) datalog = new Datalog("TwoWheelBotOct07");
-
-        if (TUNE) tuneButtons(); // used to tune the K terms
+        if (LOG) datalog = new Datalog("TwoWheelBotOct15");
 
         if (APRILTAG) {
 
@@ -220,7 +218,6 @@ public class TwoWheelBalanceBot {
       */
     public void init_loop() {
         theOpmode.telemetry.addData("LOG", LOG);
-        theOpmode.telemetry.addData("TUNE", TUNE);
         theOpmode.telemetry.addData("APRIL TAG", APRILTAG);
     }
 
@@ -332,18 +329,15 @@ public class TwoWheelBalanceBot {
         // The robot pitch target is determined by the angle of the arm.
         armPitchTarget = theArm.updateArm(deltaTime); // update arm position (this makes it move)
 
-        if (TUNE) {
-            tuneButtons(); // used to tune the K terms
-            adjustThingButtons();
-        }
+
 
         // MAIN BALANCE CONTROL CODE:
         double posError = sOdom - posTarget;
         double veloError = linearVelocity + veloTarget;
         double positionVolts = Kvelo * veloError + Kpos * posError;
 
-        double sumPitchTarget = armPitchTarget + autoPitchTarget;
-        pitchError = pitch - sumPitchTarget; // - accelPitchAdjust;   // ADD ACCEL PITCH ADJUSTMENT?
+        pitchTarget = armPitchTarget + autoPitchTarget;
+        pitchError = pitch - pitchTarget; // - accelPitchAdjust;   // ADD ACCEL PITCH ADJUSTMENT?
 
         // Kpitch needs to decrease when the arm is down
         //double newKpitch = Kpitch * Math.cos((Math.PI/180)*theArm.getAngle() / 2.6);
@@ -399,7 +393,7 @@ public class TwoWheelBalanceBot {
             datalog.veloTarget.set(veloTarget);
             //datalog.accelTarget.set(accelTarget);
             datalog.pitch.set(pitch);
-            datalog.pitchTarget.set(sumPitchTarget);
+            datalog.pitchTarget.set(pitchTarget);
             datalog.pitchRATE.set(pitchRATE);
             datalog.yaw.set(yaw);
             datalog.yawTarget.set(yawTarget);
@@ -431,14 +425,17 @@ public class TwoWheelBalanceBot {
             datalog.writeLine();
         }
         if (TELEMETRY) {
-            theOpmode.telemetry.addData("s position target (mm)", "%.1f ", posTarget);
+            theOpmode.telemetry.addData("s position Target (mm)", "%.1f ", posTarget);
             theOpmode.telemetry.addData("s position Odometry (mm)", "%.1f ", sOdom);
-            theOpmode.telemetry.addData("Velocity (mm/sec)", "%.1f ", linearVelocity);
+
+            theOpmode.telemetry.addData("Velocity Target (mm/sec)", "%.1f ", veloTarget);
+            theOpmode.telemetry.addData("Velocity Current (mm/sec)", "%.1f ", linearVelocity);
+
             theOpmode.telemetry.addData("Arm Target Angle", theArm.getTargetAngle());
-            //theOpmode.telemetry.addData("Arm Current Angle", theArm.getAngle());
-            //theOpmode.telemetry.addData("Arm Servo getPosition ", theArm.getPosition());
+            theOpmode.telemetry.addData("Arm Current Angle", theArm.getAngle());
+
+            theOpmode.telemetry.addData("Pitch Target (degrees)", "%.1f ", pitchTarget);
             theOpmode.telemetry.addData("Pitch IMU (degrees)", "%.1f ", pitch);
-            theOpmode.telemetry.addData("Pitch Target (degrees)", "%.1f ", sumPitchTarget);
         }
 
         // kill the robot if it pitches over or runs fast
@@ -644,6 +641,9 @@ public class TwoWheelBalanceBot {
         }
 
         posTarget += veloTarget*deltaTime;
+
+        // add some pitch to get it moving
+        //autoPitchTarget = theOpmode.gamepad1.left_stick_y * 10.0;
 
     }
     /*

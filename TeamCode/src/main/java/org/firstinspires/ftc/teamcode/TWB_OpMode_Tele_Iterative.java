@@ -23,7 +23,6 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
     public void init() {
         twb = new TwoWheelBalanceBot(hardwareMap,this); // Create twb object
 
-        twb.TUNE = true;
         twb.LOG = false;
 
         twb.init();
@@ -61,7 +60,7 @@ public class TWB_OpMode_Tele_Iterative extends OpMode
 
         // get teleoperated inputs
 
-        twb.velo_teleop(300); // set robot velocity and position targets
+        twb.velo_teleop(600); // set robot velocity and position targets
 
         twb.turn_teleop(0.02);
 
