@@ -27,6 +27,7 @@ import java.util.List;
 
 /**
  * Two Wheel Balancing Robot Class, with Arm.
+ * This class has about 50 members (variables)!
  */
 public class TwoWheelBalanceBot {
     final private OpMode theOpmode; // Set during construction.  Enables using telemetry and gamepad
@@ -39,12 +40,12 @@ public class TwoWheelBalanceBot {
     Datalog datalog; // create the data logger object
 
     // These are the state terms for a two wheel balancing robot
-    public double Kpitch = -0.6; // volts/degree at arm = -90
-    public double KpitchRate = -0.04; // volts/degrees/sec
+    public double Kpitch = -0.61; // volts/degree at arm = -90
+    public double KpitchRate = -0.022; // volts/degrees/sec
     // Have had difficulty tuning this term.  Can't tell what changes it makes.
 
-    public double Kpos = 0.006;  // volts/mm For high balancing (unstable) this term is positive
-    public double Kvelo = 0.017;  // volts/mm/sec For high balancing (unstable) this term is positive
+    public double Kpos = 0.009;  // volts/mm For high balancing (unstable) this term is positive
+    public double Kvelo = 0.015;  // volts/mm/sec For high balancing (unstable) this term is positive
     // Larger Kvelo decreases the rocking motion, up to a point, then chatter!
     // Both Kpos and Kvelo are negative when the center of mass is below the wheel axles.
 
@@ -101,7 +102,7 @@ public class TwoWheelBalanceBot {
 
     //Timer to limit how frequently the claw opens the closes
     ElapsedTime clawTimer = new ElapsedTime();
-    Servo clawServo;
+    public Servo clawServo;
 
     // used in Design of Experiments
     public double PosAmplitude = 0;
@@ -159,7 +160,7 @@ public class TwoWheelBalanceBot {
 
         // Initialize the arm class
         // ARM LIMITS ARE DEFINED IN ArmServoTWB class
-        theArm = new TWBArmServo(hardwareMap, "arm_servo", 0.0, 140, -150, 70);
+        theArm = new TWBArmServo(hardwareMap, "arm_servo", 0.0, 140, -145, 60);
         // NOTE: Set arm angle to zero to rig the servo (so it is easy to see)
 
         clawServo = hardwareMap.get(Servo.class, "clawServo");
@@ -172,7 +173,7 @@ public class TwoWheelBalanceBot {
      * TWB init. Called once at initialization
      */
     public void init() {
-        if (LOG) datalog = new Datalog("TwoWheelBotOct15");
+        if (LOG) datalog = new Datalog("TwoWheelBotOct17");
 
         if (APRILTAG) {
 
@@ -254,9 +255,9 @@ public class TwoWheelBalanceBot {
         theOpmode.telemetry.addData("Arm Angle (DEG)", theArm.getAngle());
         armPitchTarget = theArm.updateArm(0.02); // This will make the arm move
 
-        clawServo.setPosition(0.98);
-        theOpmode.telemetry.addData("CLAW", "RIGGING");
-        theOpmode.telemetry.addData("ATTACH CLAW", "CLOSED");
+        //clawServo.setPosition(0.98);
+        //theOpmode.telemetry.addData("CLAW", "RIGGING");
+        //theOpmode.telemetry.addData("ATTACH CLAW", "CLOSED");
     }
 
     /**
@@ -366,8 +367,8 @@ public class TwoWheelBalanceBot {
         leftDrive.setPower(totalPowerVolts / currentVoltage - yawPower + zeroVoltsAdjust);
         rightDrive.setPower(totalPowerVolts / currentVoltage + yawPower + zeroVoltsAdjust);
 
-        if (ClawIsClosed) clawServo.setPosition(0.98); // closed value (changed .90 to .98)
-        else clawServo.setPosition(0.5); // open value (WAS 0.35)
+        if (ClawIsClosed) clawServo.setPosition(0.7); // closed value (0.98 for blocks)
+        else clawServo.setPosition(0.4); // open value (WAS 0.35)
 
         if(APRILTAG) {
             List<AprilTagDetection> currentDetections = aprilTag.getDetections();
@@ -436,6 +437,8 @@ public class TwoWheelBalanceBot {
 
             theOpmode.telemetry.addData("Pitch Target (degrees)", "%.1f ", pitchTarget);
             theOpmode.telemetry.addData("Pitch IMU (degrees)", "%.1f ", pitch);
+
+            theOpmode.telemetry.addData("Claw Servo", clawServo.getPosition());
         }
 
         // kill the robot if it pitches over or runs fast
@@ -641,12 +644,16 @@ public class TwoWheelBalanceBot {
         }
 
         posTarget += veloTarget*deltaTime;
+    }
+    /**
+     * TWB method to provide user control of moving the robot with joystick, controlling pitch.
+     */
+    public void pitch_teleop() {
 
         // add some pitch to get it moving
-        //autoPitchTarget = theOpmode.gamepad1.left_stick_y * 10.0;
-
+        autoPitchTarget = theOpmode.gamepad1.left_stick_y * 10.0;
     }
-    /*
+     /*
     public void slow_ramp() {
 
         // Slow Power Ramp, for Ks determination

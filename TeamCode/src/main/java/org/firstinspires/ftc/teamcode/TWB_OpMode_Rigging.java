@@ -24,7 +24,7 @@ public class TWB_OpMode_Rigging extends OpMode
         twb = new TwoWheelBalanceBot(hardwareMap,this); // Create twb object
 
         twb.LOG = true;
-        twb.APRILTAG = true;
+        twb.APRILTAG = false;
 
         twb.init();
 
@@ -35,13 +35,19 @@ public class TWB_OpMode_Rigging extends OpMode
      */
     @Override
     public void init_loop() {
+
         telemetry.addData("RIGGING", "INIT LOOP");
 
         twb.init_loop(); // provides user a chance to change the K terms
 
         twb.servo_rig_loop();
 
-        twb.tuneButtons(); // used to tune the K terms
+        //twb.tuneButtons(); // used to tune the K terms
+
+        if (gamepad1.xWasPressed()) twb.clawServo.setPosition(0.7); // closed value (0.98 for blocks)
+        else if (gamepad1.bWasPressed()) twb.clawServo.setPosition(0.4); // open value (WAS 0.35)
+
+        telemetry.addData("Claw Servo", twb.clawServo.getPosition());
 
         telemetry.update();
     }
@@ -63,7 +69,9 @@ public class TWB_OpMode_Rigging extends OpMode
 
         // get teleoperated inputs
 
-        twb.velo_teleop(500); // set robot velocity and position targets
+        //twb.velo_teleop(500); // set robot velocity and position targets
+
+        twb.pitch_teleop();
 
         twb.turn_teleop(0.01); // set robot yaw angle target
 

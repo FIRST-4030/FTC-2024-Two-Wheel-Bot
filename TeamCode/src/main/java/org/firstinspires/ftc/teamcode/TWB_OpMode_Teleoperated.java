@@ -11,7 +11,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
  */
 @TeleOp(name="TWB Teleoperated")
 //@Disabled
-public class TWB_OpMode_Tele_Iterative extends OpMode
+public class TWB_OpMode_Teleoperated extends OpMode
 {
     // Declare OpMode members.
     private TwoWheelBalanceBot twb;
