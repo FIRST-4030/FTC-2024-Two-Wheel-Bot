@@ -56,7 +56,7 @@ public class TwoWheelBalanceBot {
     // YAW PID
     PIDController yawPID = new PIDController(0.45, 0.12, 0.05); // kp, ki, kd
 
-    public double posTarget = 0.0;  // from the user joystick in teleop or from auto routines
+    public double posTarget = 0.0;
     public double veloTarget = 0.0;
     public double autoPitchTarget = 0; // used to set pitch from an auto routine
     double pitchTarget = 0;
@@ -160,7 +160,7 @@ public class TwoWheelBalanceBot {
 
         // Initialize the arm class
         // ARM LIMITS ARE DEFINED IN ArmServoTWB class
-        theArm = new TWBArmServo(hardwareMap, "arm_servo", 0.0, 140, -145, 60);
+        theArm = new TWBArmServo(hardwareMap, "arm_servo", 0.0, 140, -165, 60);
         // NOTE: Set arm angle to zero to rig the servo (so it is easy to see)
 
         clawServo = hardwareMap.get(Servo.class, "clawServo");
@@ -173,7 +173,7 @@ public class TwoWheelBalanceBot {
      * TWB init. Called once at initialization
      */
     public void init() {
-        if (LOG) datalog = new Datalog("TwoWheelBotOct17");
+        if (LOG) datalog = new Datalog("TwoWheelBotDec15");
 
         if (APRILTAG) {
 
@@ -367,8 +367,8 @@ public class TwoWheelBalanceBot {
         leftDrive.setPower(totalPowerVolts / currentVoltage - yawPower + zeroVoltsAdjust);
         rightDrive.setPower(totalPowerVolts / currentVoltage + yawPower + zeroVoltsAdjust);
 
-        if (ClawIsClosed) clawServo.setPosition(0.7); // closed value (0.98 for blocks)
-        else clawServo.setPosition(0.4); // open value (WAS 0.35)
+        if (ClawIsClosed) clawServo.setPosition(1.0); // closed value (0.98 for blocks)
+        else clawServo.setPosition(0.35); // open value (WAS 0.35)
 
         if(APRILTAG) {
             List<AprilTagDetection> currentDetections = aprilTag.getDetections();
@@ -651,7 +651,10 @@ public class TwoWheelBalanceBot {
     public void pitch_teleop() {
 
         // add some pitch to get it moving
-        autoPitchTarget = theOpmode.gamepad1.left_stick_y * 10.0;
+        autoPitchTarget = theOpmode.gamepad1.left_stick_y * 8.0;
+
+        // move the position target as well
+        posTarget -= theOpmode.gamepad1.left_stick_y * 7.0;
     }
      /*
     public void slow_ramp() {

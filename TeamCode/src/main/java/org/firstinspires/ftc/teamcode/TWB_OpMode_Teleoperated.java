@@ -59,8 +59,9 @@ public class TWB_OpMode_Teleoperated extends OpMode
     public void loop() {
 
         // get teleoperated inputs
+        twb.pitch_teleop();
 
-        twb.velo_teleop(600); // set robot velocity and position targets
+        //twb.velo_teleop(600); // set robot velocity and position targets
 
         twb.turn_teleop(0.02);
 

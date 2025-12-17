@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -12,6 +13,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
  * This OpMode runs a flywheel shooter motor using a custom feedforward + feedback controller.
  * It also does Datalogging, to review the performance of the shooter.
  */
+@Disabled
 @TeleOp(name="ShooterController")
 public class ShooterController extends LinearOpMode {
 
