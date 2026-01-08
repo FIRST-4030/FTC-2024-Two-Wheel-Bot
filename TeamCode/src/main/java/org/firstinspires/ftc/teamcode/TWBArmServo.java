@@ -43,6 +43,24 @@ public class TWBArmServo {
 
         pitchAngVec.debug = false;
         pitchAngVec.setClampLimits(false);
+        pitchAngVec.addElement(-160,6.26952); // new global arm angle is -153.73"
+        pitchAngVec.addElement(-140,9.09704); // new global arm angle is -130.903"
+        pitchAngVec.addElement(-120,10.459); // new global arm angle is -109.541"
+        pitchAngVec.addElement(-100,10.4217); // new global arm angle is -89.5783"
+        pitchAngVec.addElement(-80,9.22811); // new global arm angle is -70.7719"
+        pitchAngVec.addElement(-60,7.16788); // new global arm angle is -52.8321"
+        pitchAngVec.addElement(-40,4.51794); // new global arm angle is -35.4821"
+        pitchAngVec.addElement(-20,1.52861); // new global arm angle is -18.4714"
+        pitchAngVec.addElement(0,-1.57038); // new global arm angle is -1.57038"
+        pitchAngVec.addElement(20,-4.55667); // new global arm angle is 15.4433"
+        pitchAngVec.addElement(40,-7.20035); // new global arm angle is 32.7996"
+        pitchAngVec.addElement(60,-9.25074); // new global arm angle is 50.7493"
+        pitchAngVec.addElement(80,-10.4305); // new global arm angle is 69.5695"
+        pitchAngVec.addElement(100,-10.4503); // new global arm angle is 89.5497"
+        pitchAngVec.addElement(120,-9.06833); // new global arm angle is 110.932"
+        pitchAngVec.addElement(140,-6.22194); // new global arm angle is 133.778"
+        pitchAngVec.addElement(160,-2.205); // new global arm angle is 157.795"
+/* Balanced arm
         pitchAngVec.addElement(-160,4.26974); // new global arm angle is -155.73
         pitchAngVec.addElement(-140,7.69909); // new global arm angle is -132.301
         pitchAngVec.addElement(-120,9.78656); // new global arm angle is -110.213
@@ -60,6 +78,7 @@ public class TWBArmServo {
         pitchAngVec.addElement(120,-9.78656); // new global arm angle is 110.213
         pitchAngVec.addElement(140,-7.69909); // new global arm angle is 132.301
         pitchAngVec.addElement(160,-4.26974); // new global arm angle is 155.73
+*/
         }
 
     /**

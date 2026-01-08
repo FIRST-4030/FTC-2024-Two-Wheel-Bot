@@ -173,7 +173,7 @@ public class TwoWheelBalanceBot {
      * TWB init. Called once at initialization
      */
     public void init() {
-        if (LOG) datalog = new Datalog("TwoWheelBotDec15");
+        if (LOG) datalog = new Datalog("TwoWheelBot");
 
         if (APRILTAG) {
 
@@ -236,6 +236,10 @@ public class TwoWheelBalanceBot {
         else theArm.setArmAngle(-150.0);
         theOpmode.telemetry.addData("Arm Angle (DEG)", theArm.getAngle());
         armPitchTarget = theArm.updateArm(0.02); // This will make the arm move
+
+        if (ClawIsClosed) clawServo.setPosition(1.0); // closed value (0.98 for blocks)
+        else clawServo.setPosition(0.35); // open value (WAS 0.35)
+
     }
 
     /**

@@ -52,12 +52,8 @@ public class TWBMoves {
         //   using an ... manually derived curve.  Trial and error...
         pitchVector.debug = false;
         pitchVector.addElement(.00,.00);
-        //pitchVector.addElement(.05,-.7); // (.15,-.28)
-        //pitchVector.addElement(.25,-.5); // (.15,-.28)
-        //pitchVector.addElement(.35,-.2); // (.85,.28)
-        //pitchVector.addElement(.50,0);
-        //pitchVector.addElement(.60,0.4);
-        //pitchVector.addElement(.80,0.3);
+        pitchVector.addElement(.05,-1.20); // determined by test
+        pitchVector.addElement(.75,0.0);
         pitchVector.addElement(1.00,.00);
     }
 
@@ -84,9 +80,10 @@ public class TWBMoves {
 
         posTarget = sign*distance*posVector.getY(currentTime/totalTime) + startingS;
 
-        velocity = (posTarget-priorPosition)/(currentTime-priorTime);
+        //velocity = (posTarget-priorPosition)/(currentTime-priorTime);
         priorPosition=posTarget;
         priorTime=currentTime;
+        velocity = 0.0;
 
         max_v = 2.0 * distance / totalTime;
         max_a = 4.0 * max_v / totalTime;

@@ -37,6 +37,8 @@ public class TWB_OpMode_Auto1 extends OpMode {
 
         twb.LOG = true;
 
+        twb.ClawIsClosed = true; // close the claw
+
         twb.init();
 
     }
@@ -65,7 +67,6 @@ public class TWB_OpMode_Auto1 extends OpMode {
         moveTimer.reset();
 
         twb.start(); // gets the latest state of the robot before running
-        twb.ClawIsClosed = true; // close the claw
         twb.theArm.setArmAngle(-90);  // move the arm
     }
 
@@ -86,11 +87,11 @@ public class TWB_OpMode_Auto1 extends OpMode {
                 }
                 break;
             case MOVE1:
-                if (getRuntime() <= 8.0 ) {
+                if (getRuntime() <= 7.0 ) {
                     newTargets = myTWBmoves.lineMove(DIST,3.0, moveTimer.seconds(),currentPos);
                     twb.posTarget = newTargets[0]; // ADD METHOD THAT INCLUDES VELOCITY TARGET BASED ON POSTARGET
                     twb.autoPitchTarget = newTargets[1];
-                    twb.veloTarget = newTargets[2];
+                    //twb.veloTarget = newTargets[2];
                 } else {
                     state = State.MOVE2;
                     moveTimer.reset();
@@ -99,15 +100,18 @@ public class TWB_OpMode_Auto1 extends OpMode {
                 }
                 break;
             case MOVE2:
-                 if (getRuntime() <= 12.0) {
-                     myTWBmoves.reverseDir = true;
-                    newTargets = myTWBmoves.lineMove(DIST,3.0, moveTimer.seconds(),currentPos);
-                    twb.posTarget = newTargets[0];
-                    twb.autoPitchTarget = newTargets[1];
-                    twb.veloTarget = newTargets[2];
-                 } else {
-                    state = State.DONE;
+                 if (getRuntime() <= 9.0) {
+                     // Sit for a bit to let robot stabilize after opening claw
                      moveTimer.reset();
+                 } else if (getRuntime() <= 12.0) {
+                         myTWBmoves.reverseDir = true;
+                         newTargets = myTWBmoves.lineMove(DIST,3.0, moveTimer.seconds(),currentPos);
+                         twb.posTarget = newTargets[0];
+                         twb.autoPitchTarget = newTargets[1];
+                         //twb.veloTarget = newTargets[2];
+                 } else {
+                         state = State.DONE;
+                         moveTimer.reset();
                  }
                 break;
             case DONE:
